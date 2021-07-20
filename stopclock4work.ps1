@@ -3,11 +3,17 @@
 [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") 
 
 
+enum PauseTypes {
+    running
+    stopped
+    stoppedByLock
+}
+
 $StartTime = Get-Date #- (New-TimeSpan -Minute 1)  # margin for checkin/boot Time
 #$Pause_StartTime = 0;
 #$Pause_StartTime = New-TimeSpan -Seconds 0;
 #$Stop = 0;
-$Pause = 0;
+[PauseTypes]$Pause = [PauseTypes]::running;
 $NormalTime = New-TimeSpan -Seconds 0;
 $TotalPauseTime = New-TimeSpan -Seconds 0;
 $PauseTime = New-TimeSpan -Seconds 0;
@@ -156,7 +162,7 @@ $PauseButton.Width = $Widht
 $PauseButton.Height = $Height
 $PauseButton.Location = New-Object System.Drawing.Size($Widht, $Height)
 $PauseButton.Add_Click( { 
-        $script:Pause = 1
+        $script:Pause = [PauseTypes]::stopped
         $script:PauseStartTime = Get-Date 
     })
 $MainWindow.Controls.Add($PauseButton)
@@ -167,7 +173,7 @@ $Resume.Width = $Widht
 $Resume.Height = $Height
 $Resume.Location = New-Object System.Drawing.Size($Widht, (2 * $Height))
 $Resume.Add_Click( { 
-        $script:Pause = 0
+        $script:Pause = [PauseTypes]::running
         $script:TotalPauseTime = $script:PauseTime 
     })
 $MainWindow.Controls.Add($Resume)
@@ -181,7 +187,7 @@ $PauseLock.Add_Click( {
         $script:PauseStartTime = Get-Date
         rundll32.exe user32.dll, LockWorkStation
         Start-Sleep -Seconds 5; # wait till user is really loged of
-        $script:Pause = 2
+        $script:Pause = [PauseTypes]::stoppedByLock
     })
 $MainWindow.Controls.Add($PauseLock)
 
