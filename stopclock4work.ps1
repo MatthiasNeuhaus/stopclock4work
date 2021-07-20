@@ -81,17 +81,29 @@ function GetLogonStatus () {
 
 
 $stopclock = {
-    if ($script:Pause -eq 0) {
-        $Time = Get-Date;
-        $script:NormalTime = New-TimeSpan –Start $script:StartTime –End $Time;
-        $script:NormalTime = $script:NormalTime - $script:TotalPauseTime;
-        $Countup.Text = $script:NormalTime.ToString("hh\:mm\:ss");
-    }
-    else {
-        if ($script:Pause -eq 2) {
-            $retval = GetLogonStatus
-            if ( $retval -eq 0) {
-                $script:Pause = 0
+
+    $logonStatus = GetLogonStatus
+
+    switch ($script:Pause) {
+        
+        [PauseTypes]::running {
+            if ( $logonStatus -eq 1)
+            {
+                $script:Pause = [PauseTypes]::stoppedByLock
+                $script:PauseStartTime = Get-Date
+            }
+            else {
+                $Time = Get-Date;
+                $script:NormalTime = New-TimeSpan –Start $script:StartTime –End $Time;
+                $script:NormalTime = $script:NormalTime - $script:TotalPauseTime;
+                $Countup.Text = $script:NormalTime.ToString("hh\:mm\:ss");
+            }  
+        }
+
+        [PauseTypes]::stoppedByLock {
+
+            if ( $logonStatus -eq 0) {
+                $script:Pause = [PauseTypes]::running
                 
                 $Time = Get-Date;
                 $script:PauseTime = New-TimeSpan –Start $script:PauseStartTime –End $Time;
@@ -101,11 +113,18 @@ $stopclock = {
                 $script:TotalPauseTime = $script:PauseTime
             }
         }
-        else {
-            $Time = Get-Date;
-            $script:PauseTime = New-TimeSpan –Start $script:PauseStartTime –End $Time;
-            $script:PauseTime = $script:PauseTime + $script:TotalPauseTime;
-            $CountupPause.Text = $script:PauseTime.ToString("hh\:mm\:ss");
+
+        [PauseTypes]::stopped {
+            if ( $logonStatus -eq 1)
+            {
+                $script:Pause = [PauseTypes]::stoppedByLock
+            }
+            else {            
+                $Time = Get-Date;
+                $script:PauseTime = New-TimeSpan –Start $script:PauseStartTime –End $Time;
+                $script:PauseTime = $script:PauseTime + $script:TotalPauseTime;
+                $CountupPause.Text = $script:PauseTime.ToString("hh\:mm\:ss");
+            }
         }
     }
 }
