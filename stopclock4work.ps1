@@ -10,11 +10,8 @@ enum PauseTypes {
 }
 
 $StartTime = Get-Date #- (New-TimeSpan -Minute 1)  # margin for checkin/boot Time
-#$Pause_StartTime = 0;
-#$Pause_StartTime = New-TimeSpan -Seconds 0;
-#$Stop = 0;
 [PauseTypes]$Pause = [PauseTypes]::running;
-$NormalTime = New-TimeSpan -Seconds 0;
+$WorkTime = New-TimeSpan -Seconds 0;
 $TotalPauseTime = New-TimeSpan -Seconds 0;
 $PauseTime = New-TimeSpan -Seconds 0;
 
@@ -66,17 +63,20 @@ function WriteToCsv () {
 }
 
 function GetLogonStatus () {
+
+    #get current user name
     try {
         $user = $null
         $user = Get-WmiObject -Class win32_computersystem -ComputerName localhost | Select-Object -ExpandProperty username -ErrorAction Stop
     }
     catch { return -1 }
+    #check if workstation is locked
     try {
         if ((Get-Process logonui -ComputerName localhost -ErrorAction Stop) -and ($user)) {
             return 1
         }
     }
-    catch { if ($user) { return 0 } }
+    catch { if ($user) { return 0 } } #user is logged on 
 }
 
 
@@ -94,22 +94,21 @@ $stopclock = {
             }
             else {
                 $Time = Get-Date;
-                $script:NormalTime = New-TimeSpan –Start $script:StartTime –End $Time;
-                $script:NormalTime = $script:NormalTime - $script:TotalPauseTime;
-                $Countup.Text = $script:NormalTime.ToString("hh\:mm\:ss");
+                $script:WorkTime = New-TimeSpan –Start $script:StartTime –End $Time;
+                $script:WorkTime = $script:WorkTime - $script:TotalPauseTime;
+                $Countup.Text = $script:WorkTime.ToString("hh\:mm\:ss");
             }  
         }
 
         [PauseTypes]::stoppedByLock {
 
             if ( $logonStatus -eq 0) {
-                $script:Pause = [PauseTypes]::running
-                
                 $Time = Get-Date;
                 $script:PauseTime = New-TimeSpan –Start $script:PauseStartTime –End $Time;
                 $script:PauseTime = $script:PauseTime + $script:TotalPauseTime;
                 $CountupPause.Text = $script:PauseTime.ToString("hh\:mm\:ss");
 
+                $script:Pause = [PauseTypes]::running
                 $script:TotalPauseTime = $script:PauseTime
             }
         }
@@ -170,7 +169,7 @@ $StopShutdown.Location = New-Object System.Drawing.Size(0, (3 * $Height))
 $StopShutdown.Add_Click( { 
         $timer.Enabled = $False
         WriteToCsv
-        shutdown /s
+        #shutdown /s
         [void] $MainWindow.Close()
     })
 $MainWindow.Controls.Add($StopShutdown)
@@ -204,8 +203,8 @@ $PauseLock.Height = $Height
 $PauseLock.Location = New-Object System.Drawing.Size($Widht, (3 * $Height))
 $PauseLock.Add_Click( { 
         $script:PauseStartTime = Get-Date
-        rundll32.exe user32.dll, LockWorkStation
-        Start-Sleep -Seconds 5; # wait till user is really loged of
+        # rundll32.exe user32.dll, LockWorkStation
+        # Start-Sleep -Seconds 5; # wait till user is really loged of
         $script:Pause = [PauseTypes]::stoppedByLock
     })
 $MainWindow.Controls.Add($PauseLock)
