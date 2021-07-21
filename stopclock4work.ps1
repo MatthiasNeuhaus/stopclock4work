@@ -86,7 +86,7 @@ $stopclock = {
 
     switch ($script:Pause) {
         
-        [PauseTypes]::running {
+        ([PauseTypes]::running) {
             if ( $logonStatus -eq 1)
             {
                 $script:Pause = [PauseTypes]::stoppedByLock
@@ -97,10 +97,11 @@ $stopclock = {
                 $script:WorkTime = New-TimeSpan –Start $script:StartTime –End $Time;
                 $script:WorkTime = $script:WorkTime - $script:TotalPauseTime;
                 $Countup.Text = $script:WorkTime.ToString("hh\:mm\:ss");
-            }  
+            }
+            break  
         }
 
-        [PauseTypes]::stoppedByLock {
+        ([PauseTypes]::stoppedByLock) {
 
             if ( $logonStatus -eq 0) {
                 $Time = Get-Date;
@@ -111,9 +112,10 @@ $stopclock = {
                 $script:Pause = [PauseTypes]::running
                 $script:TotalPauseTime = $script:PauseTime
             }
+            break
         }
 
-        [PauseTypes]::stopped {
+        ([PauseTypes]::stopped) {
             if ( $logonStatus -eq 1)
             {
                 $script:Pause = [PauseTypes]::stoppedByLock
@@ -124,6 +126,7 @@ $stopclock = {
                 $script:PauseTime = $script:PauseTime + $script:TotalPauseTime;
                 $CountupPause.Text = $script:PauseTime.ToString("hh\:mm\:ss");
             }
+            break
         }
     }
 }
