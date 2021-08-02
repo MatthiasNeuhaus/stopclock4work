@@ -59,7 +59,14 @@ $CountupPause.TextAlign = "MiddleCenter"
 $MainWindow.Controls.Add($CountupPause)
 
 function WriteToCsv () {
-    #$StartTime.Date+$StartTime.Hour | Export-Csv -Path .\timesheet.csv -Delimiter ';'
+    $writeStart = [PSCustomObject]@{
+        DayOfWeek       = $script:StartTime.DayOfWeek.ToString() 
+        Date            = $script:StartTime.Date.ToString('dd/MM/yyyy')
+        WorkStartTime   = $script:StartTime.TimeOfDay.ToString('hh\:mm\:ss')
+        WorkTime        = $script:WorkTime.ToString('hh\:mm\:ss')
+        PauseTime       = $script:TotalPauseTime.ToString('hh\:mm\:ss')
+    }
+    $writeStart | Export-Csv -UseCulture -Path .\timesheet.csv -Append -NoTypeInformation -Force
 }
 
 function GetLogonStatus () {
@@ -172,7 +179,7 @@ $StopShutdown.Location = New-Object System.Drawing.Size(0, (3 * $Height))
 $StopShutdown.Add_Click( { 
         $timer.Enabled = $False
         WriteToCsv
-        #shutdown /s
+        shutdown /s
         [void] $MainWindow.Close()
     })
 $MainWindow.Controls.Add($StopShutdown)
@@ -206,8 +213,8 @@ $PauseLock.Height = $Height
 $PauseLock.Location = New-Object System.Drawing.Size($Widht, (3 * $Height))
 $PauseLock.Add_Click( { 
         $script:PauseStartTime = Get-Date
-        # rundll32.exe user32.dll, LockWorkStation
-        # Start-Sleep -Seconds 5; # wait till user is really loged of
+        rundll32.exe user32.dll, LockWorkStation
+        Start-Sleep -Seconds 5; # wait till user is really loged of
         $script:Pause = [PauseTypes]::stoppedByLock
     })
 $MainWindow.Controls.Add($PauseLock)
