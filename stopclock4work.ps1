@@ -185,6 +185,7 @@ $StopHybernate.Add_Click( {
         $timer.Enabled = $False
         WriteToCsv
         rundll32.exe powrprof.dll, SetSuspendState 0, 1, 0
+        [void] $MainWindow.Close()
     })
 $MainWindow.Controls.Add($StopHybernate)
 
