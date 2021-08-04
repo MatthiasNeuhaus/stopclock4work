@@ -179,7 +179,7 @@ $StopShutdown.Location = New-Object System.Drawing.Size(0, (3 * $Height))
 $StopShutdown.Add_Click( { 
         $timer.Enabled = $False
         WriteToCsv
-        shutdown /s
+        shutdown /s /hybrid
         [void] $MainWindow.Close()
     })
 $MainWindow.Controls.Add($StopShutdown)
