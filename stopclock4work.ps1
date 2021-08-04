@@ -59,12 +59,27 @@ $CountupPause.TextAlign = "MiddleCenter"
 $MainWindow.Controls.Add($CountupPause)
 
 function WriteToCsv () {
+    $PauseTimes = Import-Csv -Path .\PauseTimes.csv -Delimiter ";"
+
+    ForEach ($Index in 0 .. ($PauseTimes.AboveHrs.Count - 1))
+    {
+        $AboveHr = [Timespan]::Parse($PauseTimes.AboveHrs[$Index])
+        if ($script:WorkTime -ge $AboveHr) 
+        { 
+            $PauseTimeCalc = [Timespan]::Parse($PauseTimes.PauseTime[$Index])
+        }
+    }    
+    $WorkEndTime        = $script:StartTime + $script:WorkTime;
+    $WorkEndTimeCalc    = $script:StartTime + $script:WorkTime + $PauseTimeCalc;
     $writeStart = [PSCustomObject]@{
         DayOfWeek       = $script:StartTime.DayOfWeek.ToString() 
         Date            = $script:StartTime.Date.ToString('dd/MM/yyyy')
         WorkStartTime   = $script:StartTime.TimeOfDay.ToString('hh\:mm\:ss')
         WorkTime        = $script:WorkTime.ToString('hh\:mm\:ss')
         PauseTime       = $script:TotalPauseTime.ToString('hh\:mm\:ss')
+        WorkEndTime     = $WorkEndTime.TimeOfDay.ToString('hh\:mm\:ss')
+        WorkEndTimeCalc = $WorkEndTimeCalc.TimeOfDay.ToString('hh\:mm\:ss')
+        PauseTimeCalc   = $PauseTimeCalc.ToString('hh\:mm\:ss')
     }
     $writeStart | Export-Csv -UseCulture -Path .\timesheet.csv -Append -NoTypeInformation -Force
 }
