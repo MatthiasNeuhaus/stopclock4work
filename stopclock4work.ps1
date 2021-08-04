@@ -1,4 +1,4 @@
-﻿# Die ersten beiden Befehle holen sich die .NET-Erweiterungen (sog. Assemblies) für die grafische Gestaltung in den RAM.
+# Die ersten beiden Befehle holen sich die .NET-Erweiterungen (sog. Assemblies) für die grafische Gestaltung in den RAM.
 [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Drawing") 
 [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") 
 
@@ -40,13 +40,13 @@ $Widht = 147
 $MainWindow.Size = New-Object System.Drawing.Size((2 * $Widht), (5 * $Height))
 
 # Titelleiste festlegen
-$MainWindow.Text = "Attendance"
+$MainWindow.Text = "WT: 00:00:00"
 
 # Countup
 $Countup = New-Object System.Windows.Forms.Label
 $Countup.Location = New-Object System.Drawing.Size(0, 0)
 #$Countup.Size = New-Object System.Drawing.Size($Widht,$Height)
-$Countup.Text = "Counter"
+$Countup.Text = "00:00:00"
 $MainWindow.Controls.Add($Countup)
 
 # Countup Pause
@@ -101,9 +101,10 @@ $stopclock = {
             }
             else {
                 $Time = Get-Date;
-                $script:WorkTime = New-TimeSpan –Start $script:StartTime –End $Time;
-                $script:WorkTime = $script:WorkTime - $script:TotalPauseTime;
-                $Countup.Text = $script:WorkTime.ToString("hh\:mm\:ss");
+                $script:WorkTime    = New-TimeSpan –Start $script:StartTime –End $Time;
+                $script:WorkTime    = $script:WorkTime - $script:TotalPauseTime;
+                $Countup.Text       = $script:WorkTime.ToString("hh\:mm\:ss");
+                $MainWindow.Text    = "WT: " + $Countup.Text;
             }
             break  
         }
