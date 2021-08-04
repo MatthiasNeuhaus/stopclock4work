@@ -23,7 +23,8 @@ $MainWindow = New-Object System.Windows.Forms.Form
 $MainWindow.Backcolor = “white“
 
 # Icon in die Titelleiste setzen
-# $MainWindow.Icon="C:\Powershell\XXX.ico"  #kann selbst definiert werden
+$IconPath = Join-Path $PSScriptRoot "StopClock4Work.ico"
+$MainWindow.Icon = $IconPath
 
 # Hintergrundbild mit Formatierung Zentral = 2
 #$MainWindow.BackgroundImageLayout = 2
