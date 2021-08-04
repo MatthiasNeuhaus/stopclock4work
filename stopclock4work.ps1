@@ -9,7 +9,7 @@ enum PauseTypes {
     stoppedByLock
 }
 
-$StartTime = Get-Date #- (New-TimeSpan -Minute 1)  # margin for checkin/boot Time
+$StartTime = Get-Date
 [PauseTypes]$Pause = [PauseTypes]::running;
 $WorkTime = New-TimeSpan -Seconds 0;
 $TotalPauseTime = New-TimeSpan -Seconds 0;
@@ -18,6 +18,9 @@ $PauseTime = New-TimeSpan -Seconds 0;
 
 # Die nächste Zeile erstellt aus der Formsbibliothek das Fensterobjekt.
 $MainWindow = New-Object System.Windows.Forms.Form
+
+# Remove close buttons
+$MainWindow.ControlBox = $false
 
 # Hintergrundfarbe für das Fenster festlegen
 $MainWindow.Backcolor = “white“
