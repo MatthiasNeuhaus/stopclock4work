@@ -1,4 +1,4 @@
-# Die ersten beiden Befehle holen sich die .NET-Erweiterungen (sog. Assemblies) für die grafische Gestaltung in den RAM.
+﻿# Die ersten beiden Befehle holen sich die .NET-Erweiterungen (sog. Assemblies) für die grafische Gestaltung in den RAM.
 [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Drawing") 
 [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") 
 
@@ -37,7 +37,7 @@ $Height = 32
 $Widht = 147
 
 # Fenstergröße festlegen
-$MainWindow.Size = New-Object System.Drawing.Size((2 * $Widht), (5 * $Height))
+$MainWindow.Size = New-Object System.Drawing.Size(((2 * $Widht)+15), ((5 * $Height)+5))
 
 # Titelleiste festlegen
 $MainWindow.Text = "WT: 00:00:00"
@@ -157,7 +157,7 @@ $stopclock = {
 
 $timer = New-Object 'System.Windows.Forms.Timer'
 $timer.Enabled = $True 
-$timer.Interval = 1000
+$timer.Interval = 1000 # ms -> 1 s
 $timer.add_Tick($stopclock)
 
 
