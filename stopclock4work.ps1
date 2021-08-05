@@ -75,6 +75,12 @@ function WriteToCsv () {
     }    
     $WorkEndTime        = $script:StartTime + $script:WorkTime;
     $WorkEndTimeCalc    = $script:StartTime + $script:WorkTime + $BreakTimeCalc;
+
+    $TargetWorkTimes = Import-Csv -Path .\TargetWorkTimes.csv -Delimiter ";"
+    $Today = $script:StartTime.DayOfWeek
+    $TargetWorktime = [Timespan]::Parse($TargetWorkTimes.$Today)
+    $WorkTimeBalance = $script:WorkTime - $TargetWorktime
+
     $writeStart = [PSCustomObject]@{
         DayOfWeek       = $script:StartTime.DayOfWeek.ToString() 
         Date            = $script:StartTime.Date.ToString('dd/MM/yyyy')
@@ -84,6 +90,7 @@ function WriteToCsv () {
         WorkEndTime     = $WorkEndTime.TimeOfDay.ToString('hh\:mm\:ss')
         WorkEndTimeCalc = $WorkEndTimeCalc.TimeOfDay.ToString('hh\:mm\:ss')
         BreakTimeCalc   = $BreakTimeCalc.ToString('hh\:mm\:ss')
+        WorkTimeBalance = $WorkTimeBalance.ToString('\-hh\:mm\:ss')
     }
     $writeStart | Export-Csv -UseCulture -Path .\timesheet.csv -Append -NoTypeInformation -Force
 }
