@@ -3,17 +3,17 @@
 [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") 
 
 
-enum PauseTypes {
+enum BreakTypes {
     running
     stopped
     stoppedByLock
 }
 
 $StartTime = Get-Date
-[PauseTypes]$Pause = [PauseTypes]::running;
+[BreakTypes]$Break = [BreakTypes]::running;
 $WorkTime = New-TimeSpan -Seconds 0;
-$TotalPauseTime = New-TimeSpan -Seconds 0;
-$PauseTime = New-TimeSpan -Seconds 0;
+$TotalBreakTime = New-TimeSpan -Seconds 0;
+$BreakTime = New-TimeSpan -Seconds 0;
 
 
 # Die nächste Zeile erstellt aus der Formsbibliothek das Fensterobjekt.
@@ -53,37 +53,37 @@ $Countup.Location = New-Object System.Drawing.Size(0, 0)
 $Countup.Text = "00:00:00"
 $MainWindow.Controls.Add($Countup)
 
-# Countup Pause
-$CountupPause = New-Object System.Windows.Forms.Label
-$CountupPause.Location = New-Object System.Drawing.Size($Widht, 0)
-$CountupPause.AutoSize = $True
-$CountupPause.Text = "00:00:00"
-$CountupPause.ForeColor = "red"
-$CountupPause.TextAlign = "MiddleCenter"
-$MainWindow.Controls.Add($CountupPause)
+# Countup Break
+$CountupBreak = New-Object System.Windows.Forms.Label
+$CountupBreak.Location = New-Object System.Drawing.Size($Widht, 0)
+$CountupBreak.AutoSize = $True
+$CountupBreak.Text = "00:00:00"
+$CountupBreak.ForeColor = "red"
+$CountupBreak.TextAlign = "MiddleCenter"
+$MainWindow.Controls.Add($CountupBreak)
 
 function WriteToCsv () {
-    $PauseTimes = Import-Csv -Path .\PauseTimes.csv -Delimiter ";"
+    $BreakTimes = Import-Csv -Path .\BreakTimes.csv -Delimiter ";"
 
-    ForEach ($Index in 0 .. ($PauseTimes.AboveHrs.Count - 1))
+    ForEach ($Index in 0 .. ($BreakTimes.AboveHrs.Count - 1))
     {
-        $AboveHr = [Timespan]::Parse($PauseTimes.AboveHrs[$Index])
+        $AboveHr = [Timespan]::Parse($BreakTimes.AboveHrs[$Index])
         if ($script:WorkTime -ge $AboveHr) 
         { 
-            $PauseTimeCalc = [Timespan]::Parse($PauseTimes.PauseTime[$Index])
+            $BreakTimeCalc = [Timespan]::Parse($BreakTimes.BreakTime[$Index])
         }
     }    
     $WorkEndTime        = $script:StartTime + $script:WorkTime;
-    $WorkEndTimeCalc    = $script:StartTime + $script:WorkTime + $PauseTimeCalc;
+    $WorkEndTimeCalc    = $script:StartTime + $script:WorkTime + $BreakTimeCalc;
     $writeStart = [PSCustomObject]@{
         DayOfWeek       = $script:StartTime.DayOfWeek.ToString() 
         Date            = $script:StartTime.Date.ToString('dd/MM/yyyy')
         WorkStartTime   = $script:StartTime.TimeOfDay.ToString('hh\:mm\:ss')
         WorkTime        = $script:WorkTime.ToString('hh\:mm\:ss')
-        PauseTime       = $script:TotalPauseTime.ToString('hh\:mm\:ss')
+        BreakTime       = $script:TotalBreakTime.ToString('hh\:mm\:ss')
         WorkEndTime     = $WorkEndTime.TimeOfDay.ToString('hh\:mm\:ss')
         WorkEndTimeCalc = $WorkEndTimeCalc.TimeOfDay.ToString('hh\:mm\:ss')
-        PauseTimeCalc   = $PauseTimeCalc.ToString('hh\:mm\:ss')
+        BreakTimeCalc   = $BreakTimeCalc.ToString('hh\:mm\:ss')
     }
     $writeStart | Export-Csv -UseCulture -Path .\timesheet.csv -Append -NoTypeInformation -Force
 }
@@ -110,48 +110,48 @@ $stopclock = {
 
     $logonStatus = GetLogonStatus
 
-    switch ($script:Pause) {
+    switch ($script:Break) {
         
-        ([PauseTypes]::running) {
+        ([BreakTypes]::running) {
             if ( $logonStatus -eq 1)
             {
-                $script:Pause = [PauseTypes]::stoppedByLock
-                $script:PauseStartTime = Get-Date
+                $script:Break = [BreakTypes]::stoppedByLock
+                $script:BreakStartTime = Get-Date
             }
             else {
                 $Time = Get-Date;
                 $script:WorkTime    = New-TimeSpan –Start $script:StartTime –End $Time;
-                $script:WorkTime    = $script:WorkTime - $script:TotalPauseTime;
+                $script:WorkTime    = $script:WorkTime - $script:TotalBreakTime;
                 $Countup.Text       = $script:WorkTime.ToString("hh\:mm\:ss");
                 $MainWindow.Text    = "WT: " + $Countup.Text;
             }
             break  
         }
 
-        ([PauseTypes]::stoppedByLock) {
+        ([BreakTypes]::stoppedByLock) {
 
             if ( $logonStatus -eq 0) {
                 $Time = Get-Date;
-                $script:PauseTime = New-TimeSpan –Start $script:PauseStartTime –End $Time;
-                $script:PauseTime = $script:PauseTime + $script:TotalPauseTime;
-                $CountupPause.Text = $script:PauseTime.ToString("hh\:mm\:ss");
+                $script:BreakTime = New-TimeSpan –Start $script:BreakStartTime –End $Time;
+                $script:BreakTime = $script:BreakTime + $script:TotalBreakTime;
+                $CountupBreak.Text = $script:BreakTime.ToString("hh\:mm\:ss");
 
-                $script:Pause = [PauseTypes]::running
-                $script:TotalPauseTime = $script:PauseTime
+                $script:Break = [BreakTypes]::running
+                $script:TotalBreakTime = $script:BreakTime
             }
             break
         }
 
-        ([PauseTypes]::stopped) {
+        ([BreakTypes]::stopped) {
             if ( $logonStatus -eq 1)
             {
-                $script:Pause = [PauseTypes]::stoppedByLock
+                $script:Break = [BreakTypes]::stoppedByLock
             }
             else {            
                 $Time = Get-Date;
-                $script:PauseTime = New-TimeSpan –Start $script:PauseStartTime –End $Time;
-                $script:PauseTime = $script:PauseTime + $script:TotalPauseTime;
-                $CountupPause.Text = $script:PauseTime.ToString("hh\:mm\:ss");
+                $script:BreakTime = New-TimeSpan –Start $script:BreakStartTime –End $Time;
+                $script:BreakTime = $script:BreakTime + $script:TotalBreakTime;
+                $CountupBreak.Text = $script:BreakTime.ToString("hh\:mm\:ss");
             }
             break
         }
@@ -205,16 +205,16 @@ $StopShutdown.Add_Click( {
     })
 $MainWindow.Controls.Add($StopShutdown)
 
-$PauseButton = New-Object System.Windows.Forms.Button
-$PauseButton.Text = "Pause" 
-$PauseButton.Width = $Widht
-$PauseButton.Height = $Height
-$PauseButton.Location = New-Object System.Drawing.Size($Widht, $Height)
-$PauseButton.Add_Click( { 
-        $script:Pause = [PauseTypes]::stopped
-        $script:PauseStartTime = Get-Date 
+$BreakButton = New-Object System.Windows.Forms.Button
+$BreakButton.Text = "Break" 
+$BreakButton.Width = $Widht
+$BreakButton.Height = $Height
+$BreakButton.Location = New-Object System.Drawing.Size($Widht, $Height)
+$BreakButton.Add_Click( { 
+        $script:Break = [BreakTypes]::stopped
+        $script:BreakStartTime = Get-Date 
     })
-$MainWindow.Controls.Add($PauseButton)
+$MainWindow.Controls.Add($BreakButton)
 
 $Resume = New-Object System.Windows.Forms.Button
 $Resume.Text = "Resume" 
@@ -222,23 +222,23 @@ $Resume.Width = $Widht
 $Resume.Height = $Height
 $Resume.Location = New-Object System.Drawing.Size($Widht, (2 * $Height))
 $Resume.Add_Click( { 
-        $script:Pause = [PauseTypes]::running
-        $script:TotalPauseTime = $script:PauseTime 
+        $script:Break = [BreakTypes]::running
+        $script:TotalBreakTime = $script:BreakTime 
     })
 $MainWindow.Controls.Add($Resume)
 
-$PauseLock = New-Object System.Windows.Forms.Button
-$PauseLock.Text = "Pause and Lock" 
-$PauseLock.Width = $Widht
-$PauseLock.Height = $Height
-$PauseLock.Location = New-Object System.Drawing.Size($Widht, (3 * $Height))
-$PauseLock.Add_Click( { 
-        $script:PauseStartTime = Get-Date
+$BreakLock = New-Object System.Windows.Forms.Button
+$BreakLock.Text = "Break and Lock" 
+$BreakLock.Width = $Widht
+$BreakLock.Height = $Height
+$BreakLock.Location = New-Object System.Drawing.Size($Widht, (3 * $Height))
+$BreakLock.Add_Click( { 
+        $script:BreakStartTime = Get-Date
         rundll32.exe user32.dll, LockWorkStation
         Start-Sleep -Seconds 5; # wait till user is really loged of
-        $script:Pause = [PauseTypes]::stoppedByLock
+        $script:Break = [BreakTypes]::stoppedByLock
     })
-$MainWindow.Controls.Add($PauseLock)
+$MainWindow.Controls.Add($BreakLock)
 
 
 # Die letzte Zeile sorgt dafür, dass unser Fensterobjekt auf dem Bildschirm angezeigt wird.
