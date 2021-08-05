@@ -9,18 +9,43 @@ enum BreakTypes {
     stoppedByLock
 }
 
+$DataFolder = ".\Data"
+
 # Variables for calculation
 $StartTime = Get-Date
-[BreakTypes]$Break = [BreakTypes]::running;
+[BreakTypes]$BreakType = [BreakTypes]::running;
 $WorkTime = New-TimeSpan -Seconds 0;
 $TotalBreakTime = New-TimeSpan -Seconds 0;
 $BreakTime = New-TimeSpan -Seconds 0;
 
+# Write tmp file for persistence during restart
+$TmpFileName = $StartTime.Date.ToString('dd/MM/yyyy') + ".csv"
+$TmpFile = Join-Path $DataFolder $TmpFileName
+if (!(Test-Path $TmpFile -PathType leaf))
+{
+    $writeStart = [PSCustomObject]@{
+        StartTime       = $StartTime
+        WorkTime        = $WorkTime
+        BreakTime       = $TotalBreakTime
+        BreakType       = $BreakType
+    }
+    $writeStart | Export-Csv -UseCulture -Path $TmpFile
+}
+else # File does exist - read it!
+{
+    $ReadStart = Import-Csv -UseCulture -Path $TmpFile
+    
+    $StartTime              = [DateTime]::Parse($ReadStart.StartTime)
+    $WorkTime               = [Timespan]::Parse($ReadStart.WorkTime)
+    $TotalBreakTime         = [Timespan]::Parse($ReadStart.BreakTime)
+    $BreakType              = $ReadStart.BreakType
+}
+
 # Read target work times for countdown
 $TargetWorkTimes = Import-Csv -Path .\TargetWorkTimes.csv -Delimiter ";"
-$Today = $script:StartTime.DayOfWeek
+$Today = $StartTime.DayOfWeek
 $TargetWorktime = [Timespan]::Parse($TargetWorkTimes.$Today)
-$WorkTimeBalance = $script:WorkTime - $TargetWorktime
+$WorkTimeBalance = $WorkTime - $TargetWorktime
 
 # Die nächste Zeile erstellt aus der Formsbibliothek das Fensterobjekt.
 $MainWindow = New-Object System.Windows.Forms.Form
@@ -56,14 +81,14 @@ $MainWindow.Text = "WTB: " + $WorkTimeBalance.ToString('\-hh\:mm\:ss')
 $Countup = New-Object System.Windows.Forms.Label
 $Countup.Location = New-Object System.Drawing.Size(0, 0)
 #$Countup.Size = New-Object System.Drawing.Size($Widht,$Height)
-$Countup.Text = "WT: 00:00:00"
+$Countup.Text = "WT: " + $script:WorkTime.ToString("hh\:mm\:ss")
 $MainWindow.Controls.Add($Countup)
 
 # Countup Break
 $CountupBreak = New-Object System.Windows.Forms.Label
 $CountupBreak.Location = New-Object System.Drawing.Size($Widht, 0)
 $CountupBreak.AutoSize = $True
-$CountupBreak.Text = "BT: 00:00:00"
+$CountupBreak.Text = "BT: " + $script:TotalBreakTime.ToString("hh\:mm\:ss")
 $CountupBreak.ForeColor = "red"
 $CountupBreak.TextAlign = "MiddleCenter"
 $MainWindow.Controls.Add($CountupBreak)
@@ -79,10 +104,10 @@ function WriteToCsv () {
             $BreakTimeCalc = [Timespan]::Parse($BreakTimes.BreakTime[$Index])
         }
     }    
-    $WorkEndTime        = $script:StartTime + $script:WorkTime;
+    $WorkEndTime        = $script:StartTime + $script:WorkTime + $script:TotalBreakTime;
     $WorkEndTimeCalc    = $script:StartTime + $script:WorkTime + $BreakTimeCalc;
 
-    $writeStart = [PSCustomObject]@{
+    $writeOutput = [PSCustomObject]@{
         DayOfWeek       = $script:StartTime.DayOfWeek.ToString() 
         Date            = $script:StartTime.Date.ToString('dd/MM/yyyy')
         WorkStartTime   = $script:StartTime.TimeOfDay.ToString('hh\:mm\:ss')
@@ -93,7 +118,7 @@ function WriteToCsv () {
         BreakTimeCalc   = $BreakTimeCalc.ToString('hh\:mm\:ss')
         WorkTimeBalance = $script:WorkTimeBalance.ToString('\-hh\:mm\:ss')
     }
-    $writeStart | Export-Csv -UseCulture -Path .\timesheet.csv -Append -NoTypeInformation -Force
+    $writeOutput | Export-Csv -UseCulture -Path .\timesheet.csv -Append -NoTypeInformation -Force
 }
 
 function GetLogonStatus () {
@@ -118,19 +143,19 @@ $stopclock = {
 
     $logonStatus = GetLogonStatus
 
-    switch ($script:Break) {
+    switch ($script:BreakType) {
         
         ([BreakTypes]::running) {
             if ( $logonStatus -eq 1)
             {
-                $script:Break = [BreakTypes]::stoppedByLock
+                $script:BreakType = [BreakTypes]::stoppedByLock
                 $script:BreakStartTime = Get-Date
             }
             else {
                 $Time = Get-Date;
-                $script:WorkTime    = New-TimeSpan –Start $script:StartTime –End $Time;
-                $script:WorkTime    = $script:WorkTime - $script:TotalBreakTime;
-                $Countup.Text       = "WT: " + $script:WorkTime.ToString("hh\:mm\:ss");
+                $script:WorkTime    = New-TimeSpan –Start $script:StartTime –End $Time
+                $script:WorkTime    = $script:WorkTime - $script:TotalBreakTime
+                $Countup.Text       = "WT: " + $script:WorkTime.ToString("hh\:mm\:ss")
                 $script:WorkTimeBalance    = $script:WorkTime - $TargetWorktime
                 $MainWindow.Text    = "WTB: " +  $WorkTimeBalance.ToString('\-hh\:mm\:ss')
             }
@@ -141,11 +166,11 @@ $stopclock = {
 
             if ( $logonStatus -eq 0) {
                 $Time = Get-Date;
-                $script:BreakTime = New-TimeSpan –Start $script:BreakStartTime –End $Time;
-                $script:BreakTime = $script:BreakTime + $script:TotalBreakTime;
-                $CountupBreak.Text = "BT: " + $script:BreakTime.ToString("hh\:mm\:ss");
+                $script:BreakTime = New-TimeSpan –Start $script:BreakStartTime –End $Time
+                $script:BreakTime = $script:BreakTime + $script:TotalBreakTime
+                $CountupBreak.Text = "BT: " + $script:BreakTime.ToString("hh\:mm\:ss")
 
-                $script:Break = [BreakTypes]::running
+                $script:BreakType = [BreakTypes]::running
                 $script:TotalBreakTime = $script:BreakTime
             }
             break
@@ -154,13 +179,13 @@ $stopclock = {
         ([BreakTypes]::stopped) {
             if ( $logonStatus -eq 1)
             {
-                $script:Break = [BreakTypes]::stoppedByLock
+                $script:BreakType = [BreakTypes]::stoppedByLock
             }
             else {            
                 $Time = Get-Date;
-                $script:BreakTime = New-TimeSpan –Start $script:BreakStartTime –End $Time;
-                $script:BreakTime = $script:BreakTime + $script:TotalBreakTime;
-                $CountupBreak.Text = "BT: " + $script:BreakTime.ToString("hh\:mm\:ss");
+                $script:BreakTime = New-TimeSpan –Start $script:BreakStartTime –End $Time
+                $script:BreakTime = $script:BreakTime + $script:TotalBreakTime
+                $CountupBreak.Text = "BT: " + $script:BreakTime.ToString("hh\:mm\:ss")
             }
             break
         }
@@ -220,7 +245,7 @@ $BreakButton.Width = $Widht
 $BreakButton.Height = $Height
 $BreakButton.Location = New-Object System.Drawing.Size($Widht, $Height)
 $BreakButton.Add_Click( { 
-        $script:Break = [BreakTypes]::stopped
+        $script:BreakType = [BreakTypes]::stopped
         $script:BreakStartTime = Get-Date 
     })
 $MainWindow.Controls.Add($BreakButton)
@@ -231,7 +256,7 @@ $Resume.Width = $Widht
 $Resume.Height = $Height
 $Resume.Location = New-Object System.Drawing.Size($Widht, (2 * $Height))
 $Resume.Add_Click( { 
-        $script:Break = [BreakTypes]::running
+        $script:BreakType = [BreakTypes]::running
         $script:TotalBreakTime = $script:BreakTime 
     })
 $MainWindow.Controls.Add($Resume)
@@ -245,7 +270,7 @@ $BreakLock.Add_Click( {
         $script:BreakStartTime = Get-Date
         rundll32.exe user32.dll, LockWorkStation
         Start-Sleep -Seconds 5; # wait till user is really loged of
-        $script:Break = [BreakTypes]::stoppedByLock
+        $script:BreakType = [BreakTypes]::stoppedByLock
     })
 $MainWindow.Controls.Add($BreakLock)
 
