@@ -9,12 +9,18 @@ enum BreakTypes {
     stoppedByLock
 }
 
+# Variables for calculation
 $StartTime = Get-Date
 [BreakTypes]$Break = [BreakTypes]::running;
 $WorkTime = New-TimeSpan -Seconds 0;
 $TotalBreakTime = New-TimeSpan -Seconds 0;
 $BreakTime = New-TimeSpan -Seconds 0;
 
+# Read target work times for countdown
+$TargetWorkTimes = Import-Csv -Path .\TargetWorkTimes.csv -Delimiter ";"
+$Today = $script:StartTime.DayOfWeek
+$TargetWorktime = [Timespan]::Parse($TargetWorkTimes.$Today)
+$WorkTimeBalance = $script:WorkTime - $TargetWorktime
 
 # Die nächste Zeile erstellt aus der Formsbibliothek das Fensterobjekt.
 $MainWindow = New-Object System.Windows.Forms.Form
@@ -43,21 +49,21 @@ $Widht = 147
 # Fenstergröße festlegen
 $MainWindow.Size = New-Object System.Drawing.Size(((2 * $Widht)+15), ((5 * $Height)+5))
 
-# Titelleiste festlegen
-$MainWindow.Text = "WT: 00:00:00"
+# Countdown in title
+$MainWindow.Text = "WTB: " + $WorkTimeBalance.ToString('\-hh\:mm\:ss')
 
 # Countup
 $Countup = New-Object System.Windows.Forms.Label
 $Countup.Location = New-Object System.Drawing.Size(0, 0)
 #$Countup.Size = New-Object System.Drawing.Size($Widht,$Height)
-$Countup.Text = "00:00:00"
+$Countup.Text = "WT: 00:00:00"
 $MainWindow.Controls.Add($Countup)
 
 # Countup Break
 $CountupBreak = New-Object System.Windows.Forms.Label
 $CountupBreak.Location = New-Object System.Drawing.Size($Widht, 0)
 $CountupBreak.AutoSize = $True
-$CountupBreak.Text = "00:00:00"
+$CountupBreak.Text = "BT: 00:00:00"
 $CountupBreak.ForeColor = "red"
 $CountupBreak.TextAlign = "MiddleCenter"
 $MainWindow.Controls.Add($CountupBreak)
@@ -76,11 +82,6 @@ function WriteToCsv () {
     $WorkEndTime        = $script:StartTime + $script:WorkTime;
     $WorkEndTimeCalc    = $script:StartTime + $script:WorkTime + $BreakTimeCalc;
 
-    $TargetWorkTimes = Import-Csv -Path .\TargetWorkTimes.csv -Delimiter ";"
-    $Today = $script:StartTime.DayOfWeek
-    $TargetWorktime = [Timespan]::Parse($TargetWorkTimes.$Today)
-    $WorkTimeBalance = $script:WorkTime - $TargetWorktime
-
     $writeStart = [PSCustomObject]@{
         DayOfWeek       = $script:StartTime.DayOfWeek.ToString() 
         Date            = $script:StartTime.Date.ToString('dd/MM/yyyy')
@@ -90,7 +91,7 @@ function WriteToCsv () {
         WorkEndTime     = $WorkEndTime.TimeOfDay.ToString('hh\:mm\:ss')
         WorkEndTimeCalc = $WorkEndTimeCalc.TimeOfDay.ToString('hh\:mm\:ss')
         BreakTimeCalc   = $BreakTimeCalc.ToString('hh\:mm\:ss')
-        WorkTimeBalance = $WorkTimeBalance.ToString('\-hh\:mm\:ss')
+        WorkTimeBalance = $script:WorkTimeBalance.ToString('\-hh\:mm\:ss')
     }
     $writeStart | Export-Csv -UseCulture -Path .\timesheet.csv -Append -NoTypeInformation -Force
 }
@@ -129,8 +130,9 @@ $stopclock = {
                 $Time = Get-Date;
                 $script:WorkTime    = New-TimeSpan –Start $script:StartTime –End $Time;
                 $script:WorkTime    = $script:WorkTime - $script:TotalBreakTime;
-                $Countup.Text       = $script:WorkTime.ToString("hh\:mm\:ss");
-                $MainWindow.Text    = "WT: " + $Countup.Text;
+                $Countup.Text       = "WT: " + $script:WorkTime.ToString("hh\:mm\:ss");
+                $script:WorkTimeBalance    = $script:WorkTime - $TargetWorktime
+                $MainWindow.Text    = "WTB: " +  $WorkTimeBalance.ToString('\-hh\:mm\:ss')
             }
             break  
         }
@@ -141,7 +143,7 @@ $stopclock = {
                 $Time = Get-Date;
                 $script:BreakTime = New-TimeSpan –Start $script:BreakStartTime –End $Time;
                 $script:BreakTime = $script:BreakTime + $script:TotalBreakTime;
-                $CountupBreak.Text = $script:BreakTime.ToString("hh\:mm\:ss");
+                $CountupBreak.Text = "BT: " + $script:BreakTime.ToString("hh\:mm\:ss");
 
                 $script:Break = [BreakTypes]::running
                 $script:TotalBreakTime = $script:BreakTime
@@ -158,7 +160,7 @@ $stopclock = {
                 $Time = Get-Date;
                 $script:BreakTime = New-TimeSpan –Start $script:BreakStartTime –End $Time;
                 $script:BreakTime = $script:BreakTime + $script:TotalBreakTime;
-                $CountupBreak.Text = $script:BreakTime.ToString("hh\:mm\:ss");
+                $CountupBreak.Text = "BT: " + $script:BreakTime.ToString("hh\:mm\:ss");
             }
             break
         }
