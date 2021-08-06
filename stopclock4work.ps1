@@ -17,19 +17,27 @@ $StartTime = Get-Date
 $WorkTime = New-TimeSpan -Seconds 0;
 $TotalBreakTime = New-TimeSpan -Seconds 0;
 $BreakTime = New-TimeSpan -Seconds 0;
+$TempFileTimer = 0
 
 # Write tmp file for persistence during restart
 $TmpFileName = $StartTime.Date.ToString('dd/MM/yyyy') + ".csv"
 $TmpFile = Join-Path $DataFolder $TmpFileName
-if (!(Test-Path $TmpFile -PathType leaf))
+
+function WriteTmpFile ()
 {
     $writeStart = [PSCustomObject]@{
-        StartTime       = $StartTime
-        WorkTime        = $WorkTime
-        BreakTime       = $TotalBreakTime
-        BreakType       = $BreakType
+        StartTime       = $script:StartTime
+        WorkTime        = $script:WorkTime
+        BreakTime       = $script:TotalBreakTime
+        BreakStartTime  = $script:BreakStartTime
+        BreakType       = $script:BreakType
     }
-    $writeStart | Export-Csv -UseCulture -Path $TmpFile
+    $writeStart | Export-Csv -UseCulture -Path $script:TmpFile
+}
+
+if (!(Test-Path $TmpFile -PathType leaf))
+{
+    WriteTmpFile
 }
 else # File does exist - read it!
 {
@@ -38,6 +46,7 @@ else # File does exist - read it!
     $StartTime              = [DateTime]::Parse($ReadStart.StartTime)
     $WorkTime               = [Timespan]::Parse($ReadStart.WorkTime)
     $TotalBreakTime         = [Timespan]::Parse($ReadStart.BreakTime)
+    $BreakStartTime         = [timespan]::Parse($ReadStart.BreakStartTime)
     $BreakType              = $ReadStart.BreakType
 }
 
@@ -119,6 +128,11 @@ function WriteToCsv () {
         WorkTimeBalance = $script:WorkTimeBalance.ToString('\-hh\:mm\:ss')
     }
     $writeOutput | Export-Csv -UseCulture -Path .\timesheet.csv -Append -NoTypeInformation -Force
+
+    if (Test-Path $TmpFile -PathType leaf)
+    {
+        Remove-Item $TmpFile
+    }
 }
 
 function GetLogonStatus () {
@@ -143,6 +157,16 @@ $stopclock = {
 
     $logonStatus = GetLogonStatus
 
+    if ($script:TempFileTimer -eq 300) #write every 5 Minutes to tmp file
+    {
+        WriteTmpFile
+        $script:TempFileTimer = 0
+    }
+    else 
+    {
+        $script:TempFileTimer++
+    }
+
     switch ($script:BreakType) {
         
         ([BreakTypes]::running) {
@@ -150,6 +174,7 @@ $stopclock = {
             {
                 $script:BreakType = [BreakTypes]::stoppedByLock
                 $script:BreakStartTime = Get-Date
+                WriteTmpFile
             }
             else {
                 $Time = Get-Date;
@@ -172,6 +197,7 @@ $stopclock = {
 
                 $script:BreakType = [BreakTypes]::running
                 $script:TotalBreakTime = $script:BreakTime
+                WriteTmpFile
             }
             break
         }
@@ -180,6 +206,7 @@ $stopclock = {
             if ( $logonStatus -eq 1)
             {
                 $script:BreakType = [BreakTypes]::stoppedByLock
+                WriteTmpFile
             }
             else {            
                 $Time = Get-Date;
@@ -246,7 +273,8 @@ $BreakButton.Height = $Height
 $BreakButton.Location = New-Object System.Drawing.Size($Widht, $Height)
 $BreakButton.Add_Click( { 
         $script:BreakType = [BreakTypes]::stopped
-        $script:BreakStartTime = Get-Date 
+        $script:BreakStartTime = Get-Date
+        WriteTmpFile 
     })
 $MainWindow.Controls.Add($BreakButton)
 
@@ -258,6 +286,7 @@ $Resume.Location = New-Object System.Drawing.Size($Widht, (2 * $Height))
 $Resume.Add_Click( { 
         $script:BreakType = [BreakTypes]::running
         $script:TotalBreakTime = $script:BreakTime 
+        WriteTmpFile
     })
 $MainWindow.Controls.Add($Resume)
 
@@ -271,6 +300,7 @@ $BreakLock.Add_Click( {
         rundll32.exe user32.dll, LockWorkStation
         Start-Sleep -Seconds 5; # wait till user is really loged of
         $script:BreakType = [BreakTypes]::stoppedByLock
+        WriteTmpFile
     })
 $MainWindow.Controls.Add($BreakLock)
 
