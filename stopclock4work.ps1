@@ -40,23 +40,7 @@ $TempFileTimer = $SecondsToWriteTmp
 $TmpFileName = $StartTime.Date.ToString('dd/MM/yyyy') + ".csv"
 $TmpFile = Join-Path $DataFolder $TmpFileName
 
-function WriteTmpFile ()
-{
-    $writeStart = [PSCustomObject]@{
-        StartTime       = $script:StartTime
-        WorkTime        = $script:WorkTime
-        BreakTime       = $script:TotalBreakTime
-        BreakStartTime  = $script:BreakStartTime
-        BreakType       = $script:BreakType
-    }
-    $writeStart | Export-Csv -UseCulture -Path $script:TmpFile
-}
-
-if (!(Test-Path $TmpFile -PathType leaf))
-{
-    WriteTmpFile
-}
-else # File does exist - read it!
+if (Test-Path $TmpFile -PathType leaf) # Temp file does exist - read it!
 {
     $ReadStart = Import-Csv -UseCulture -Path $TmpFile
     
@@ -119,6 +103,18 @@ $CountupBreak.Text = "BT: " + $script:TotalBreakTime.ToString("hh\:mm\:ss")
 $CountupBreak.ForeColor = "red"
 $CountupBreak.TextAlign = "MiddleCenter"
 $MainWindow.Controls.Add($CountupBreak)
+
+function WriteTmpFile ()
+{
+    $writeTmp = [PSCustomObject]@{
+        StartTime       = $script:StartTime
+        WorkTime        = $script:WorkTime
+        BreakTime       = $script:TotalBreakTime
+        BreakStartTime  = $script:BreakStartTime
+        BreakType       = $script:BreakType
+    }
+    $writeTmp | Export-Csv -UseCulture -Path $script:TmpFile
+}
 
 function WriteToCsv () {
 	
