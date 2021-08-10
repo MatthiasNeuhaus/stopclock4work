@@ -86,7 +86,7 @@ $Widht = 147
 $MainWindow.Size = New-Object System.Drawing.Size(((2 * $Widht)+15), ((5 * $Height)+5))
 
 # Countdown in title
-$MainWindow.Text = "WTB: " + $WorkTimeBalance.ToString('\-hh\:mm\:ss')
+$MainWindow.Text = "WTB: $(if($WorkTimeBalance -lt [TimeSpan]::Zero ){"-"})$($WorkTimeBalance.ToString('hh\:mm\:ss'))"
 
 # Countup
 $Countup = New-Object System.Windows.Forms.Label
@@ -142,7 +142,7 @@ function WriteToCsv () {
         WorkEndTime     = $WorkEndTime.TimeOfDay.ToString('hh\:mm\:ss')
         WorkEndTimeCalc = $WorkEndTimeCalc.TimeOfDay.ToString('hh\:mm\:ss')
         BreakTimeCalc   = $BreakTimeCalc.ToString('hh\:mm\:ss')
-        WorkTimeBalance = $script:WorkTimeBalance.ToString('\-hh\:mm\:ss')
+        WorkTimeBalance = "$(if($script:WorkTimeBalance -lt [TimeSpan]::Zero ){"-"})$($script:WorkTimeBalance.ToString('hh\:mm\:ss'))"
     }
     $writeOutput | Export-Csv -UseCulture -Path $TimeSheetPath -Append -NoTypeInformation -Force
 
@@ -199,7 +199,7 @@ $stopclock = {
                 $script:WorkTime    = $script:WorkTime - $script:TotalBreakTime
                 $Countup.Text       = "WT: " + $script:WorkTime.ToString("hh\:mm\:ss")
                 $script:WorkTimeBalance    = $script:WorkTime - $script:TargetWorktime
-                $MainWindow.Text    = "WTB: " + $script:WorkTimeBalance.ToString('\-hh\:mm\:ss')
+                $MainWindow.Text    = "WTB: $(if($script:WorkTimeBalance -lt [TimeSpan]::Zero ){"-"})$($script:WorkTimeBalance.ToString('hh\:mm\:ss'))"
             }
             break  
         }
