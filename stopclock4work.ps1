@@ -9,7 +9,7 @@ enum BreakTypes {
     stoppedByLock
 }
 
-$DataFolder = ".\Data"
+$DataFolder = Join-Path $PSScriptRoot "Data\"
 
 # Variables for calculation
 $StartTime = Get-Date
@@ -51,7 +51,8 @@ else # File does exist - read it!
 }
 
 # Read target work times for countdown
-$TargetWorkTimes = Import-Csv -Path .\TargetWorkTimes.csv -Delimiter ";"
+$TargetWorkTimesPath = Join-Path $DataFolder "TargetWorkTimes.csv"
+$TargetWorkTimes = Import-Csv -Path $TargetWorkTimesPath -Delimiter ";"
 $Today = $StartTime.DayOfWeek
 $TargetWorktime = [Timespan]::Parse($TargetWorkTimes.$Today)
 $WorkTimeBalance = $WorkTime - $TargetWorktime
@@ -103,7 +104,9 @@ $CountupBreak.TextAlign = "MiddleCenter"
 $MainWindow.Controls.Add($CountupBreak)
 
 function WriteToCsv () {
-    $BreakTimes = Import-Csv -Path .\BreakTimes.csv -Delimiter ";"
+	
+	$BreakTimesPath = Join-Path $DataFolder "BreakTimes.csv"
+    $BreakTimes = Import-Csv -Path $BreakTimesPath -Delimiter ";"
 
     ForEach ($Index in 0 .. ($BreakTimes.AboveHrs.Count - 1))
     {
@@ -116,6 +119,7 @@ function WriteToCsv () {
     $WorkEndTime        = $script:StartTime + $script:WorkTime + $script:TotalBreakTime;
     $WorkEndTimeCalc    = $script:StartTime + $script:WorkTime + $BreakTimeCalc;
 
+	$TimeSheetPath = Join-Path $DataFolder "timesheet.csv"
     $writeOutput = [PSCustomObject]@{
         DayOfWeek       = $script:StartTime.DayOfWeek.ToString() 
         Date            = $script:StartTime.Date.ToString('dd/MM/yyyy')
@@ -127,7 +131,7 @@ function WriteToCsv () {
         BreakTimeCalc   = $BreakTimeCalc.ToString('hh\:mm\:ss')
         WorkTimeBalance = $script:WorkTimeBalance.ToString('\-hh\:mm\:ss')
     }
-    $writeOutput | Export-Csv -UseCulture -Path .\timesheet.csv -Append -NoTypeInformation -Force
+    $writeOutput | Export-Csv -UseCulture -Path $TimeSheetPath -Append -NoTypeInformation -Force
 
     if (Test-Path $TmpFile -PathType leaf)
     {
@@ -181,8 +185,8 @@ $stopclock = {
                 $script:WorkTime    = New-TimeSpan –Start $script:StartTime –End $Time
                 $script:WorkTime    = $script:WorkTime - $script:TotalBreakTime
                 $Countup.Text       = "WT: " + $script:WorkTime.ToString("hh\:mm\:ss")
-                $script:WorkTimeBalance    = $script:WorkTime - $TargetWorktime
-                $MainWindow.Text    = "WTB: " +  $WorkTimeBalance.ToString('\-hh\:mm\:ss')
+                $script:WorkTimeBalance    = $script:WorkTime - $script:TargetWorktime
+                $MainWindow.Text    = "WTB: " + $script:WorkTimeBalance.ToString('\-hh\:mm\:ss')
             }
             break  
         }
