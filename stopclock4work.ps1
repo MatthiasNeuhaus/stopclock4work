@@ -251,9 +251,9 @@ $StopClose.Width = $Widht
 $StopClose.Height = $Height
 $StopClose.Location = New-Object System.Drawing.Size(0, $Height)
 $StopClose.Add_Click( { 
-        $timer.Enabled = $False 
-        WriteToCsv
-        [void] $MainWindow.Close()
+    $timer.Enabled = $False 
+    WriteToCsv
+    [void] $MainWindow.Close()
     })
 $MainWindow.Controls.Add($StopClose)
 
@@ -263,10 +263,10 @@ $StopHybernate.Width = $Widht
 $StopHybernate.Height = $Height
 $StopHybernate.Location = New-Object System.Drawing.Size(0, (2 * $Height))
 $StopHybernate.Add_Click( { 
-        $timer.Enabled = $False
-        WriteToCsv
-        rundll32.exe powrprof.dll, SetSuspendState 0, 1, 0
-        [void] $MainWindow.Close()
+    $timer.Enabled = $False
+    WriteToCsv
+    rundll32.exe powrprof.dll, SetSuspendState 0, 1, 0
+    [void] $MainWindow.Close()
     })
 $MainWindow.Controls.Add($StopHybernate)
 
@@ -276,10 +276,10 @@ $StopShutdown.Width = $Widht
 $StopShutdown.Height = $Height
 $StopShutdown.Location = New-Object System.Drawing.Size(0, (3 * $Height))
 $StopShutdown.Add_Click( { 
-        $timer.Enabled = $False
-        WriteToCsv
-        shutdown /s /hybrid
-        [void] $MainWindow.Close()
+    $timer.Enabled = $False
+    WriteToCsv
+    shutdown /s /hybrid
+    [void] $MainWindow.Close()
     })
 $MainWindow.Controls.Add($StopShutdown)
 
@@ -289,9 +289,9 @@ $BreakButton.Width = $Widht
 $BreakButton.Height = $Height
 $BreakButton.Location = New-Object System.Drawing.Size($Widht, $Height)
 $BreakButton.Add_Click( { 
-        $script:BreakType = [BreakTypes]::stopped
-        $script:BreakStartTime = Get-Date
-        WriteTmpFile 
+    $script:BreakType = [BreakTypes]::stopped
+    $script:BreakStartTime = Get-Date
+    WriteTmpFile 
     })
 $MainWindow.Controls.Add($BreakButton)
 
@@ -301,9 +301,9 @@ $Resume.Width = $Widht
 $Resume.Height = $Height
 $Resume.Location = New-Object System.Drawing.Size($Widht, (2 * $Height))
 $Resume.Add_Click( { 
-        $script:BreakType = [BreakTypes]::running
-        $script:TotalBreakTime = $script:BreakTime 
-        WriteTmpFile
+    $script:BreakType = [BreakTypes]::running
+    $script:TotalBreakTime = $script:BreakTime 
+    WriteTmpFile
     })
 $MainWindow.Controls.Add($Resume)
 
@@ -313,11 +313,14 @@ $BreakLock.Width = $Widht
 $BreakLock.Height = $Height
 $BreakLock.Location = New-Object System.Drawing.Size($Widht, (3 * $Height))
 $BreakLock.Add_Click( { 
+    if ($script:BreakType -eq [BreakTypes]::running)
+    {
         $script:BreakStartTime = Get-Date
-        rundll32.exe user32.dll, LockWorkStation
-        Start-Sleep -Seconds 5; # wait till user is really loged of
-        $script:BreakType = [BreakTypes]::stoppedByLock
-        WriteTmpFile
+    }
+    rundll32.exe user32.dll, LockWorkStation
+    Start-Sleep -Seconds 5; # wait till user is really loged of
+    $script:BreakType = [BreakTypes]::stoppedByLock
+    WriteTmpFile
     })
 $MainWindow.Controls.Add($BreakLock)
 
