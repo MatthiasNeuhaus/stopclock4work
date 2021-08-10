@@ -9,7 +9,22 @@ enum BreakTypes {
     stoppedByLock
 }
 
+# Create (gitignored) Data folder if it not exists
 $DataFolder = Join-Path $PSScriptRoot "Data\"
+if (!(Test-Path $DataFolder ))
+{
+    mkdir $DataFolder
+}
+# Copy (generic) Data Source Elements into Data folder, so they can be adapted at will without being under version controll
+$DataSourceFolder = Join-Path $PSScriptRoot "DataSource\"
+Get-ChildItem $DataSourceFolder |
+ForEach-Object {
+    $DataTargetElement = Join-Path $DataFolder $_.Name
+    if (!(Test-Path $DataTargetElement -PathType leaf))
+    {
+        Copy-Item $_.FullName $DataFolder
+    }
+}
 
 # Variables for calculation
 $StartTime = Get-Date
@@ -17,7 +32,9 @@ $StartTime = Get-Date
 $WorkTime = New-TimeSpan -Seconds 0;
 $TotalBreakTime = New-TimeSpan -Seconds 0;
 $BreakTime = New-TimeSpan -Seconds 0;
-$TempFileTimer = 0
+$BreakStartTime = Get-Date
+$SecondsToWriteTmp = 300 # -> means every 5min
+$TempFileTimer = $SecondsToWriteTmp
 
 # Write tmp file for persistence during restart
 $TmpFileName = $StartTime.Date.ToString('dd/MM/yyyy') + ".csv"
@@ -46,12 +63,12 @@ else # File does exist - read it!
     $StartTime              = [DateTime]::Parse($ReadStart.StartTime)
     $WorkTime               = [Timespan]::Parse($ReadStart.WorkTime)
     $TotalBreakTime         = [Timespan]::Parse($ReadStart.BreakTime)
-    $BreakStartTime         = [timespan]::Parse($ReadStart.BreakStartTime)
+    $BreakStartTime         = [DateTime]::Parse($ReadStart.BreakStartTime)
     $BreakType              = $ReadStart.BreakType
 }
 
 # Read target work times for countdown
-$TargetWorkTimesPath = Join-Path $DataFolder "TargetWorkTimes.csv"
+$TargetWorkTimesPath = Join-Path $DataFolder "TargetWorkTimesV0.csv"
 $TargetWorkTimes = Import-Csv -Path $TargetWorkTimesPath -Delimiter ";"
 $Today = $StartTime.DayOfWeek
 $TargetWorktime = [Timespan]::Parse($TargetWorkTimes.$Today)
@@ -105,7 +122,7 @@ $MainWindow.Controls.Add($CountupBreak)
 
 function WriteToCsv () {
 	
-	$BreakTimesPath = Join-Path $DataFolder "BreakTimes.csv"
+    $BreakTimesPath = Join-Path $DataFolder "BreakTimesV0.csv"
     $BreakTimes = Import-Csv -Path $BreakTimesPath -Delimiter ";"
 
     ForEach ($Index in 0 .. ($BreakTimes.AboveHrs.Count - 1))
@@ -119,7 +136,7 @@ function WriteToCsv () {
     $WorkEndTime        = $script:StartTime + $script:WorkTime + $script:TotalBreakTime;
     $WorkEndTimeCalc    = $script:StartTime + $script:WorkTime + $BreakTimeCalc;
 
-	$TimeSheetPath = Join-Path $DataFolder "timesheet.csv"
+    $TimeSheetPath = Join-Path $DataFolder "WorkTimesV0.csv"
     $writeOutput = [PSCustomObject]@{
         DayOfWeek       = $script:StartTime.DayOfWeek.ToString() 
         Date            = $script:StartTime.Date.ToString('dd/MM/yyyy')
@@ -161,7 +178,7 @@ $stopclock = {
 
     $logonStatus = GetLogonStatus
 
-    if ($script:TempFileTimer -eq 300) #write every 5 Minutes to tmp file
+    if ($script:TempFileTimer -ge $SecondsToWriteTmp)
     {
         WriteTmpFile
         $script:TempFileTimer = 0
