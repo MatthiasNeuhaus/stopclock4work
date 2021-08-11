@@ -26,6 +26,9 @@ ForEach-Object {
     }
 }
 
+# Import User Options
+Import-Module "$($DataFolder)\OptionsV0.ps1" 
+
 # Variables for calculation
 $StartTime = Get-Date
 [BreakTypes]$BreakType = [BreakTypes]::running;
@@ -187,7 +190,7 @@ $stopclock = {
     switch ($script:BreakType) {
         
         ([BreakTypes]::running) {
-            if ( $logonStatus -eq 1)
+            if (  ( $logonStatus -eq 1) -and ($AutoStopByLock)  )
             {
                 $script:BreakType = [BreakTypes]::stoppedByLock
                 $script:BreakStartTime = Get-Date
@@ -203,7 +206,7 @@ $stopclock = {
             }
             break  
         }
-
+        
         ([BreakTypes]::stoppedByLock) {
 
             if ( $logonStatus -eq 0) {
