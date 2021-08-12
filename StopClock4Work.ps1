@@ -9,6 +9,12 @@ enum BreakTypes {
     stoppedByLock
 }
 
+enum FailreTypes {
+    retry
+    noFailure
+    abortFailure
+}
+
 # Create (gitignored) Data folder if it not exists
 $DataFolder = Join-Path $PSScriptRoot "Data\"
 if (!(Test-Path $DataFolder ))
@@ -40,7 +46,7 @@ $SecondsToWriteTmp = 300 # -> means every 5min
 $TempFileTimer = $SecondsToWriteTmp
 
 # Write tmp file for persistence during restart
-$TmpFileName = $StartTime.Date.ToString('dd/MM/yyyy') + ".csv"
+$TmpFileName = "Tmp" + $StartTime.Date.ToString('dd/MM/yyyy') + ".csv"
 $TmpFile = Join-Path $DataFolder $TmpFileName
 
 if (Test-Path $TmpFile -PathType leaf) # Temp file does exist - read it!
@@ -147,8 +153,38 @@ function WriteToCsv () {
         BreakTimeCalc   = $BreakTimeCalc.ToString('hh\:mm\:ss')
         WorkTimeBalance = "$(if($script:WorkTimeBalance -lt [TimeSpan]::Zero ){"-"})$($script:WorkTimeBalance.ToString('hh\:mm\:ss'))"
     }
-    $writeOutput | Export-Csv -UseCulture -Path $TimeSheetPath -Append -NoTypeInformation -Force
 
+    $Failure = [FailreTypes]::noFailure
+    do 
+    {
+        $Failure = [FailreTypes]::noFailure
+        try 
+        {
+            $writeOutput | Export-Csv -UseCulture -Path $TimeSheetPath -Append -NoTypeInformation
+        }
+        catch 
+        {
+            $wshell     = New-Object -ComObject Wscript.Shell
+            $PoUpReturn = $wshell.Popup("You seem to have an write protection on $($TimeSheetPath). Please close it 😉. If you abort, you can still find the worktime a seperate file for today",0,"Excel sucks!",0x5)
+
+            if ($PoUpReturn -eq 4) #means retry
+            {
+                $Failure = [FailreTypes]::retry
+            }
+            elseif ($PoUpReturn -eq 2) #means abort
+            {
+                $Failure = [FailreTypes]::abortFailure
+            }
+        }
+    } while ($Failure -eq [FailreTypes]::retry)
+    
+    if ($Failure -eq [FailreTypes]::abortFailure)
+    {
+        $TimeSheetPath = Join-Path $DataFolder "WorkTime$($StartTime.Date.ToString('dd/MM/yyyy')).csv"
+        $writeOutput | Export-Csv -UseCulture -Path $TimeSheetPath
+    }
+
+    # Remove tmp file - information stored in the correct format.
     if (Test-Path $TmpFile -PathType leaf)
     {
         Remove-Item $TmpFile
@@ -254,8 +290,8 @@ $StopClose.Width = $Widht
 $StopClose.Height = $Height
 $StopClose.Location = New-Object System.Drawing.Size(0, $Height)
 $StopClose.Add_Click( { 
-    $timer.Enabled = $False 
     WriteToCsv
+    $timer.Enabled = $False
     [void] $MainWindow.Close()
     })
 $MainWindow.Controls.Add($StopClose)
@@ -266,8 +302,8 @@ $StopHybernate.Width = $Widht
 $StopHybernate.Height = $Height
 $StopHybernate.Location = New-Object System.Drawing.Size(0, (2 * $Height))
 $StopHybernate.Add_Click( { 
-    $timer.Enabled = $False
     WriteToCsv
+    $timer.Enabled = $False
     rundll32.exe powrprof.dll, SetSuspendState 0, 1, 0
     [void] $MainWindow.Close()
     })
@@ -279,8 +315,8 @@ $StopShutdown.Width = $Widht
 $StopShutdown.Height = $Height
 $StopShutdown.Location = New-Object System.Drawing.Size(0, (3 * $Height))
 $StopShutdown.Add_Click( { 
-    $timer.Enabled = $False
     WriteToCsv
+    $timer.Enabled = $False
     shutdown /s /hybrid
     [void] $MainWindow.Close()
     })
