@@ -1,1 +1,1 @@
-DayOfWeek;Date;WorkStartTime;WorkEndTimeCalc;WorkTime;WorkEndTime;BreakTime;BreakTimeCalc;WorkTimeBalance
+DayOfWeek;Date;DateAgain;WorkStartTime;WorkEndTimeCalc;WorkTime;WorkEndTime;BreakTime;BreakTimeCalc;WorkTimeBalance

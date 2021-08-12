@@ -145,6 +145,7 @@ function WriteToCsv () {
     $writeOutput = [PSCustomObject]@{
         DayOfWeek       = $script:StartTime.DayOfWeek.ToString() 
         Date            = $script:StartTime.Date.ToString('dd/MM/yyyy')
+        DateAgain       = $script:StartTime.Date.ToString('dd/MM/yyyy')
         WorkStartTime   = $script:StartTime.TimeOfDay.ToString('hh\:mm\:ss')
         WorkTime        = $script:WorkTime.ToString('hh\:mm\:ss')
         BreakTime       = $script:TotalBreakTime.ToString('hh\:mm\:ss')
