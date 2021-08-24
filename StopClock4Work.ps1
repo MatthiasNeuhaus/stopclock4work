@@ -32,6 +32,9 @@ ForEach-Object {
     }
 }
 
+# Path for output file
+$TimeSheetPath = Join-Path $DataFolder "WorkTimesV0.csv"
+
 # Import User Options
 Import-Module "$($DataFolder)\OptionsV0.ps1" 
 
@@ -73,6 +76,9 @@ init
 # Die nächste Zeile erstellt aus der Formsbibliothek das Fensterobjekt.
 $MainWindow = New-Object System.Windows.Forms.Form
 
+# Create Tooltips 
+$Tooltip = New-Object System.Windows.Forms.ToolTip
+
 # Remove close buttons
 $MainWindow.ControlBox = $false
 
@@ -91,11 +97,11 @@ $MainWindow.Icon = $IconPath
 $MainWindow.StartPosition = "CenterScreen"
 
 # Button size
-$Height = 32
-$Widht = 147
+$Height = 25
+$Widht = 115
 
 # Fenstergröße festlegen
-$MainWindow.Size = New-Object System.Drawing.Size(((2 * $Widht)+15), ((6 * $Height)+5))
+$MainWindow.Size = New-Object System.Drawing.Size(((3 * $Widht)+16), ((6 * $Height)+14))
 
 # Countdown in title
 $MainWindow.Text = "WTB: $(if($WorkTimeBalance -lt [TimeSpan]::Zero ){"-"})$($WorkTimeBalance.ToString('hh\:mm\:ss'))"
@@ -106,6 +112,7 @@ $Countup.Location = New-Object System.Drawing.Size(0, 0)
 #$Countup.Size = New-Object System.Drawing.Size($Widht,$Height)
 $Countup.Text = "WT: " + $script:WorkTime.ToString("hh\:mm\:ss")
 $MainWindow.Controls.Add($Countup)
+$Tooltip.SetToolTip($Countup, "Todays work time counted")
 
 # Countup Break
 $CountupBreak = New-Object System.Windows.Forms.Label
@@ -115,6 +122,7 @@ $CountupBreak.Text = "BT: " + $script:TotalBreakTime.ToString("hh\:mm\:ss")
 $CountupBreak.ForeColor = "red"
 $CountupBreak.TextAlign = "MiddleCenter"
 $MainWindow.Controls.Add($CountupBreak)
+$Tooltip.SetToolTip($CountupBreak, "Todays break time counted")
 
 function WriteTmpFile ()
 {
@@ -144,7 +152,7 @@ function WriteToCsv () {
     $WorkEndTime        = $script:StartTime + $script:WorkTime + $script:TotalBreakTime;
     $WorkEndTimeCalc    = $script:StartTime + $script:WorkTime + $BreakTimeCalc;
 
-    $TimeSheetPath = Join-Path $DataFolder "WorkTimesV0.csv"
+    
     $writeOutput = [PSCustomObject]@{
         DayOfWeek       = $script:StartTime.DayOfWeek.ToString() 
         Date            = $script:StartTime.Date.ToString('dd/MM/yyyy')
@@ -169,7 +177,7 @@ function WriteToCsv () {
         catch 
         {
             $wshell     = New-Object -ComObject Wscript.Shell
-            $PoUpReturn = $wshell.Popup("You seem to have an write protection on $($TimeSheetPath). Please close it 😉. If you abort, you can still find the worktime a seperate file for today",0,"Excel sucks!",0x5)
+            $PoUpReturn = $wshell.Popup("You seem to have a write protection on $($TimeSheetPath). Please close it 😉. If you abort, you can still find the worktime a seperate file for today",0,"Excel sucks!",0x5)
 
             if ($PoUpReturn -eq 4) #means retry
             {
@@ -184,8 +192,8 @@ function WriteToCsv () {
     
     if ($Failure -eq [FailreTypes]::abortFailure)
     {
-        $TimeSheetPath = Join-Path $DataFolder "WorkTime$($StartTime.Date.ToString('dd/MM/yyyy')).csv"
-        $writeOutput | Export-Csv -UseCulture -Path $TimeSheetPath
+        $OneTimeSheetPath = Join-Path $DataFolder "WorkTime$($StartTime.Date.ToString('dd/MM/yyyy')).csv"
+        $writeOutput | Export-Csv -UseCulture -Path $OneTimeSheetPath
     }
 
     # Remove tmp file - information stored in the correct format.
@@ -302,31 +310,33 @@ $Stop.Add_Click( {
     
     })
 $MainWindow.Controls.Add($Stop)
+$Tooltip.SetToolTip($Stop, "Stop counting todays work and write a line to output file")
+
+$StopHybernate = New-Object System.Windows.Forms.Button
+$StopHybernate.Text = "Stop and Hybernate" 
+$StopHybernate.Width = $Widht
+$StopHybernate.Height = $Height
+$StopHybernate.Location = New-Object System.Drawing.Size(0, (2 * $Height))
+$StopHybernate.Add_Click( { 
+    WriteToCsv
+    $timer.Enabled = $False
+    rundll32.exe powrprof.dll, SetSuspendState 0, 1, 0
+    })
+$MainWindow.Controls.Add($StopHybernate)
+$Tooltip.SetToolTip($StopHybernate, "Stop counting todays work, write a line to output file and hybernate the workstation")
 
 $StopClose = New-Object System.Windows.Forms.Button
 $StopClose.Text = "Stop and Close" 
 $StopClose.Width = $Widht
 $StopClose.Height = $Height
-$StopClose.Location = New-Object System.Drawing.Size(0, (2 * $Height))
+$StopClose.Location = New-Object System.Drawing.Size(0, (3 * $Height))
 $StopClose.Add_Click( { 
     WriteToCsv
     $timer.Enabled = $False
     [void] $MainWindow.Close()
     })
 $MainWindow.Controls.Add($StopClose)
-
-$StopHybernate = New-Object System.Windows.Forms.Button
-$StopHybernate.Text = "Stop and Hybernate" 
-$StopHybernate.Width = $Widht
-$StopHybernate.Height = $Height
-$StopHybernate.Location = New-Object System.Drawing.Size(0, (3 * $Height))
-$StopHybernate.Add_Click( { 
-    WriteToCsv
-    $timer.Enabled = $False
-    rundll32.exe powrprof.dll, SetSuspendState 0, 1, 0
-    [void] $MainWindow.Close()
-    })
-$MainWindow.Controls.Add($StopHybernate)
+$Tooltip.SetToolTip($StopClose, "Stop counting todays work, write a line to output file and close this tool")
 
 $StopShutdown = New-Object System.Windows.Forms.Button
 $StopShutdown.Text = "Stop and Shutdown" 
@@ -340,6 +350,7 @@ $StopShutdown.Add_Click( {
     [void] $MainWindow.Close()
     })
 $MainWindow.Controls.Add($StopShutdown)
+$Tooltip.SetToolTip($StopShutdown, "Stop counting todays work, write a line to output file and shut down the workstation")
 
 $Start = New-Object System.Windows.Forms.Button
 $Start.Text = "Start" 
@@ -352,6 +363,7 @@ $Start.Add_Click( {
     WriteTmpFile
     })
 $MainWindow.Controls.Add($Start)
+$Tooltip.SetToolTip($Start, "Start counting todays work (if not allready started automatically)")
 
 $BreakButton = New-Object System.Windows.Forms.Button
 $BreakButton.Text = "Break" 
@@ -364,6 +376,7 @@ $BreakButton.Add_Click( {
     WriteTmpFile 
     })
 $MainWindow.Controls.Add($BreakButton)
+$Tooltip.SetToolTip($BreakButton, "Pause counting todays work, don't forget to resume counting manually if you do not lock the workstation")
 
 $Resume = New-Object System.Windows.Forms.Button
 $Resume.Text = "Resume" 
@@ -376,6 +389,7 @@ $Resume.Add_Click( {
     WriteTmpFile
     })
 $MainWindow.Controls.Add($Resume)
+$Tooltip.SetToolTip($Resume, "Resume counting todays work")
 
 $BreakLock = New-Object System.Windows.Forms.Button
 $BreakLock.Text = "Break and Lock" 
@@ -393,7 +407,18 @@ $BreakLock.Add_Click( {
     WriteTmpFile
     })
 $MainWindow.Controls.Add($BreakLock)
+$Tooltip.SetToolTip($BreakLock, "Pause counting todays work and lock the workstation - tool will resume counting automatically")
 
+$OutputFile = New-Object System.Windows.Forms.Button
+$OutputFile.Text = "View Output File" 
+$OutputFile.Width = $Widht
+$OutputFile.Height = $Height
+$OutputFile.Location = New-Object System.Drawing.Size((2 * $Widht), (4 * $Height))
+$OutputFile.Add_Click( { 
+    Start-Process excel $TimeSheetPath
+    })
+$MainWindow.Controls.Add($OutputFile)
+$Tooltip.SetToolTip($OutputFile, "Open output CSV File with Excel")
 
 # Die letzte Zeile sorgt dafür, dass unser Fensterobjekt auf dem Bildschirm angezeigt wird.
 [void] $MainWindow.ShowDialog()
