@@ -105,22 +105,20 @@ $MainWindow.Size = New-Object System.Drawing.Size(((3 * $Widht)+16), ((6 * $Heig
 
 # Countdown in title
 $MainWindow.Text = "WTB: $(if($WorkTimeBalance -lt [TimeSpan]::Zero ){"-"})$($WorkTimeBalance.ToString('hh\:mm\:ss'))"
-
 # Countup
 $Countup = New-Object System.Windows.Forms.Label
-$Countup.Location = New-Object System.Drawing.Size(0, 0)
-#$Countup.Size = New-Object System.Drawing.Size($Widht,$Height)
+$Countup.Location = New-Object System.Drawing.Size(20, 5)
+$Countup.AutoSize = $True
 $Countup.Text = "WT: " + $script:WorkTime.ToString("hh\:mm\:ss")
 $MainWindow.Controls.Add($Countup)
 $Tooltip.SetToolTip($Countup, "Todays work time counted")
 
 # Countup Break
 $CountupBreak = New-Object System.Windows.Forms.Label
-$CountupBreak.Location = New-Object System.Drawing.Size($Widht, 0)
+$CountupBreak.Location = New-Object System.Drawing.Size(($Widht + 20), 5)
+$CountupBreak.ForeColor = "red"
 $CountupBreak.AutoSize = $True
 $CountupBreak.Text = "BT: " + $script:TotalBreakTime.ToString("hh\:mm\:ss")
-$CountupBreak.ForeColor = "red"
-$CountupBreak.TextAlign = "MiddleCenter"
 $MainWindow.Controls.Add($CountupBreak)
 $Tooltip.SetToolTip($CountupBreak, "Todays break time counted")
 
