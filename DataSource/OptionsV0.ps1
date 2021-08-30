@@ -2,4 +2,4 @@
 # With this option you can disable this
 # Valid parameters are $True / $False
 
-$AutoStopByLock = $False
+$AutoStopByLock = $True
