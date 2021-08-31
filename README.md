@@ -7,7 +7,7 @@
 
 ## How to start
 Right click on InstallLinks.ps1 and run with PowerShell to add start links to autostart and the start program menu.
-The tool es equipped with tooltips, so therefore (hopefully) self declaring. 
+The tool is equipped with tooltips, so therefore (hopefully) self explaining. 
 Only parts you might need to additionally understand are:
 
 ### Data folder
