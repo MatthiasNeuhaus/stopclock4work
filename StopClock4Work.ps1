@@ -137,7 +137,7 @@ function WriteTmpFile ()
 
 function WriteToCsv () {
 	
-    $BreakTimesPath = Join-Path $DataFolder "BreakTimesV0.csv"
+    $BreakTimesPath = Join-Path $DataFolder "BreakTimesV1.csv"
     $BreakTimes = Import-Csv -Path $BreakTimesPath -Delimiter ";"
 
     ForEach ($Index in 0 .. ($BreakTimes.AboveHrs.Count - 1))
