@@ -1,6 +1,6 @@
 ﻿# Die ersten beiden Befehle holen sich die .NET-Erweiterungen (sog. Assemblies) für die grafische Gestaltung in den RAM.
-[void] [System.Reflection.Assembly]::LoadWithPartialName("System.Drawing") 
-[void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") 
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
 
 
 enum BreakTypes {
@@ -10,7 +10,7 @@ enum BreakTypes {
     stopped
 }
 
-enum FailreTypes {
+enum FailureTypes {
     retry
     noFailure
     abortFailure
@@ -165,31 +165,31 @@ function WriteToCsv () {
         WorkTimeBalance = "$(if($script:WorkTimeBalance -lt [TimeSpan]::Zero ){"-"})$($script:WorkTimeBalance.ToString('hh\:mm\:ss'))"
     }
 
-    $Failure = [FailreTypes]::noFailure
-    do 
+    $Failure = [FailureTypes]::noFailure
+    do
     {
-        $Failure = [FailreTypes]::noFailure
-        try 
+        $Failure = [FailureTypes]::noFailure
+        try
         {
             $writeOutput | Export-Csv -UseCulture -Path $TimeSheetPath -Append -NoTypeInformation
         }
-        catch 
+        catch
         {
             $wshell     = New-Object -ComObject Wscript.Shell
             $PoUpReturn = $wshell.Popup("You seem to have a write protection on $($TimeSheetPath). Please close it 😉. If you abort, you can still find the worktime a seperate file for today",0,"Excel sucks!",0x5)
 
             if ($PoUpReturn -eq 4) #means retry
             {
-                $Failure = [FailreTypes]::retry
+                $Failure = [FailureTypes]::retry
             }
             elseif ($PoUpReturn -eq 2) #means abort
             {
-                $Failure = [FailreTypes]::abortFailure
+                $Failure = [FailureTypes]::abortFailure
             }
         }
-    } while ($Failure -eq [FailreTypes]::retry)
-    
-    if ($Failure -eq [FailreTypes]::abortFailure)
+    } while ($Failure -eq [FailureTypes]::retry)
+
+    if ($Failure -eq [FailureTypes]::abortFailure)
     {
         $OneTimeSheetPath = Join-Path $DataFolder "WorkTime$($StartTime.Date.ToString('dd/MM/yyyy')).csv"
         $writeOutput | Export-Csv -UseCulture -Path $OneTimeSheetPath
