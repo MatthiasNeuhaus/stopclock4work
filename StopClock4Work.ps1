@@ -36,35 +36,53 @@ ForEach-Object {
 # Path for output file
 $TimeSheetPath = Join-Path $DataFolder "WorkTimesV0.csv"
 
+# Path for tmp file for persistence during restart
+$TmpFileName = "Tmp.csv"
+$TmpFile = Join-Path $DataFolder $TmpFileName
+
 # Import User Options
-Import-Module "$($DataFolder)\OptionsV0.ps1" 
+Import-Module "$($DataFolder)\OptionsV0.ps1"
+
 
 # Variables for calculation
 $SecondsToWriteTmp = 300 # -> means every 5min
 function init() {
-    $script:StartTime = Get-Date
-    [BreakTypes]$script:BreakType = [BreakTypes]::running;
-    $script:WorkTime = New-TimeSpan -Seconds 0;
-    $script:TotalBreakTime = New-TimeSpan -Seconds 0;
-    $script:BreakTime = New-TimeSpan -Seconds 0;
-    $script:BreakStartTime = Get-Date
-    $script:TempFileTimer = $SecondsToWriteTmp
-    
-    # Write tmp file for persistence during restart
-    $script:TmpFileName = "Tmp" + $StartTime.Date.ToString('dd/MM/yyyy') + ".csv"
-    $script:TmpFile = Join-Path $DataFolder $TmpFileName
-    
+
     if (Test-Path $TmpFile -PathType leaf) # Temp file does exist - read it!
     {
         $ReadStart = Import-Csv -UseCulture -Path $TmpFile
-        
+
         $script:StartTime              = [DateTime]::Parse($ReadStart.StartTime)
         $script:WorkTime               = [Timespan]::Parse($ReadStart.WorkTime)
         $script:TotalBreakTime         = [Timespan]::Parse($ReadStart.BreakTime)
         $script:BreakStartTime         = [DateTime]::Parse($ReadStart.BreakStartTime)
         $script:BreakType              = $ReadStart.BreakType
+
+        $Time = Get-Date;
+        if ($script:StartTime.Date -ne $Time.Date) # new day (after hybernation) -> write output to file and start counting again
+        {
+            WriteToCsv
+
+            $script:StartTime = Get-Date
+            $script:WorkTime = New-TimeSpan -Seconds 0;
+            $script:TotalBreakTime = New-TimeSpan -Seconds 0;
+            $script:BreakStartTime = Get-Date
+            $script:BreakType = [BreakTypes]::running
+        }
     }
-    
+    else
+    {
+        $script:StartTime = Get-Date
+        $script:WorkTime = New-TimeSpan -Seconds 0;
+        $script:TotalBreakTime = New-TimeSpan -Seconds 0;
+        $script:BreakStartTime = Get-Date
+        $script:BreakType = [BreakTypes]::running
+    }
+
+    $script:BreakTime = New-TimeSpan -Seconds 0;
+    $script:TempFileTimer = $SecondsToWriteTmp
+
+
     # Read target work times for countdown
     $TargetWorkTimesPath = Join-Path $DataFolder "TargetWorkTimesV0.csv"
     $TargetWorkTimes = Import-Csv -Path $TargetWorkTimesPath -Delimiter ";"
@@ -72,12 +90,12 @@ function init() {
     $script:TargetWorktime = [Timespan]::Parse($TargetWorkTimes.$Today)
     $script:WorkTimeBalance = $WorkTime - $TargetWorktime
 }
-init 
+init
 
 # Die nächste Zeile erstellt aus der Formsbibliothek das Fensterobjekt.
 $MainWindow = New-Object System.Windows.Forms.Form
 
-# Create Tooltips 
+# Create Tooltips
 $Tooltip = New-Object System.Windows.Forms.ToolTip
 
 # Remove close buttons
@@ -136,24 +154,24 @@ function WriteTmpFile ()
 }
 
 function WriteToCsv () {
-	
+
     $BreakTimesPath = Join-Path $DataFolder "BreakTimesV1.csv"
     $BreakTimes = Import-Csv -Path $BreakTimesPath -Delimiter ";"
 
     ForEach ($Index in 0 .. ($BreakTimes.AboveHrs.Count - 1))
     {
         $AboveHr = [Timespan]::Parse($BreakTimes.AboveHrs[$Index])
-        if ($script:WorkTime -ge $AboveHr) 
-        { 
+        if ($script:WorkTime -ge $AboveHr)
+        {
             $BreakTimeCalc = [Timespan]::Parse($BreakTimes.BreakTime[$Index])
         }
-    }    
+    }
     $WorkEndTime        = $script:StartTime + $script:WorkTime + $script:TotalBreakTime;
     $WorkEndTimeCalc    = $script:StartTime + $script:WorkTime + $BreakTimeCalc;
 
-    
+
     $writeOutput = [PSCustomObject]@{
-        DayOfWeek       = $script:StartTime.DayOfWeek.ToString() 
+        DayOfWeek       = $script:StartTime.DayOfWeek.ToString()
         Date            = $script:StartTime.Date.ToString('dd/MM/yyyy')
         DateAgain       = $script:StartTime.Date.ToString('dd/MM/yyyy')
         WorkStartTime   = $script:StartTime.TimeOfDay.ToString('hh\:mm\:ss')
@@ -216,7 +234,7 @@ function GetLogonStatus () {
             return 1
         }
     }
-    catch { if ($user) { return 0 } } #user is logged on 
+    catch { if ($user) { return 0 } } #user is logged on
 }
 
 function Set-BreakType {
@@ -242,7 +260,7 @@ function Set-BreakType {
         }
 
         ([BreakTypes]::breaked) {
-            
+
             $script:BreakType = [BreakTypes]::breaked
 
             $script:Stop.Enabled = $True
@@ -256,7 +274,7 @@ function Set-BreakType {
         }
 
         ([BreakTypes]::breakedByLock) {
-            
+
             $script:BreakType = [BreakTypes]::breakedByLock
             # this setting is more theoretically
             $script:Stop.Enabled = $True
@@ -270,7 +288,7 @@ function Set-BreakType {
         }
 
         ([BreakTypes]::stopped) {
-            
+
             $script:BreakType = [BreakTypes]::stopped
 
             $script:Stop.Enabled = $False
@@ -283,7 +301,6 @@ function Set-BreakType {
             break
         }
     }
-
 }
 
 $stopclock = {
@@ -295,13 +312,13 @@ $stopclock = {
         WriteTmpFile
         $script:TempFileTimer = 0
     }
-    else 
+    else
     {
         $script:TempFileTimer++
     }
 
     switch ($script:BreakType) {
-        
+
         ([BreakTypes]::running) {
             if (  ( $logonStatus -eq 1) -and ($AutoStopByLock)  )
             {
@@ -317,13 +334,19 @@ $stopclock = {
                 $script:WorkTimeBalance    = $script:WorkTime - $script:TargetWorktime
                 $MainWindow.Text    = "WTB: $(if($script:WorkTimeBalance -lt [TimeSpan]::Zero ){"-"})$($script:WorkTimeBalance.ToString('hh\:mm\:ss'))"
             }
-            break  
+            break
         }
-        
+
         ([BreakTypes]::breakedByLock) {
 
-            if ( $logonStatus -eq 0) {
-                $Time = Get-Date;
+            $Time = Get-Date;
+            if ($script:StartTime.Date -ne $Time.Date) # new day (after hybernation) -> write output to file and start counting again
+            {
+                WriteToCsv
+                init
+                Set-BreakType -BreakType running
+            }
+            elseif ( $logonStatus -eq 0) {
                 $script:BreakTime = New-TimeSpan –Start $script:BreakStartTime –End $Time
                 $script:BreakTime = $script:BreakTime + $script:TotalBreakTime
                 $CountupBreak.Text = "BT: " + $script:BreakTime.ToString("hh\:mm\:ss")
@@ -341,7 +364,7 @@ $stopclock = {
                 Set-BreakType -BreakType breakedByLock
                 WriteTmpFile
             }
-            else {            
+            else {
                 $Time = Get-Date;
                 $script:BreakTime = New-TimeSpan –Start $script:BreakStartTime –End $Time
                 $script:BreakTime = $script:BreakTime + $script:TotalBreakTime
@@ -364,7 +387,7 @@ $stopclock = {
 
 
 $timer = New-Object 'System.Windows.Forms.Timer'
-$timer.Enabled = $True 
+$timer.Enabled = $True
 $timer.Interval = 1000 # ms -> 1 s
 $timer.add_Tick($stopclock)
 
@@ -372,11 +395,11 @@ $timer.add_Tick($stopclock)
 
 # Buttons
 $Stop = New-Object System.Windows.Forms.Button
-$Stop.Text = "Stop" 
+$Stop.Text = "Stop"
 $Stop.Width = $Widht
 $Stop.Height = $Height
 $Stop.Location = New-Object System.Drawing.Size(0, $Height)
-$Stop.Add_Click( { 
+$Stop.Add_Click( {
     WriteToCsv
     Set-BreakType -BreakType stopped
     $MainWindow.Text    = "WTB: -" + $TargetWorktime.ToString('hh\:mm\:ss')
@@ -387,11 +410,11 @@ $MainWindow.Controls.Add($Stop)
 $Tooltip.SetToolTip($Stop, "Stop counting todays work and write a line to output file")
 
 $StopHybernate = New-Object System.Windows.Forms.Button
-$StopHybernate.Text = "Stop and Hybernate" 
+$StopHybernate.Text = "Stop and Hybernate"
 $StopHybernate.Width = $Widht
 $StopHybernate.Height = $Height
 $StopHybernate.Location = New-Object System.Drawing.Size(0, (2 * $Height))
-$StopHybernate.Add_Click( { 
+$StopHybernate.Add_Click( {
     if ($script:BreakType -ne [BreakTypes]::stopped)
     {
         WriteToCsv
@@ -403,11 +426,11 @@ $MainWindow.Controls.Add($StopHybernate)
 $Tooltip.SetToolTip($StopHybernate, "Stop counting todays work, write a line to output file and hybernate the workstation")
 
 $StopShutdown = New-Object System.Windows.Forms.Button
-$StopShutdown.Text = "Stop and Shutdown" 
+$StopShutdown.Text = "Stop and Shutdown"
 $StopShutdown.Width = $Widht
 $StopShutdown.Height = $Height
 $StopShutdown.Location = New-Object System.Drawing.Size(0, (3 * $Height))
-$StopShutdown.Add_Click( { 
+$StopShutdown.Add_Click( {
     if ($script:BreakType -ne [BreakTypes]::stopped)
     {
         WriteToCsv
@@ -420,22 +443,22 @@ $MainWindow.Controls.Add($StopShutdown)
 $Tooltip.SetToolTip($StopShutdown, "Stop counting todays work, write a line to output file and shut down the workstation")
 
 $OutputFile = New-Object System.Windows.Forms.Button
-$OutputFile.Text = "View Output File" 
+$OutputFile.Text = "View Output File"
 $OutputFile.Width = $Widht
 $OutputFile.Height = $Height
 $OutputFile.Location = New-Object System.Drawing.Size(0, (4 * $Height))
-$OutputFile.Add_Click( { 
+$OutputFile.Add_Click( {
     Start-Process excel $TimeSheetPath
     })
 $MainWindow.Controls.Add($OutputFile)
 $Tooltip.SetToolTip($OutputFile, "Open output CSV File with Excel")
 
 $Start = New-Object System.Windows.Forms.Button
-$Start.Text = "Start" 
+$Start.Text = "Start"
 $Start.Width = $Widht
 $Start.Height = $Height
 $Start.Location = New-Object System.Drawing.Size($Widht, $Height)
-$Start.Add_Click( { 
+$Start.Add_Click( {
     init
     Set-BreakType -BreakType running
     $timer.Enabled = $True
@@ -445,37 +468,37 @@ $MainWindow.Controls.Add($Start)
 $Tooltip.SetToolTip($Start, "Start counting todays work (if not allready started automatically)")
 
 $Resume = New-Object System.Windows.Forms.Button
-$Resume.Text = "Resume" 
+$Resume.Text = "Resume"
 $Resume.Width = $Widht
 $Resume.Height = $Height
 $Resume.Location = New-Object System.Drawing.Size($Widht, (2 * $Height))
-$Resume.Add_Click( { 
+$Resume.Add_Click( {
     Set-BreakType -BreakType running
-    $script:TotalBreakTime = $script:BreakTime 
+    $script:TotalBreakTime = $script:BreakTime
     WriteTmpFile
 })
 $MainWindow.Controls.Add($Resume)
 $Tooltip.SetToolTip($Resume, "Resume counting todays work")
 
 $BreakButton = New-Object System.Windows.Forms.Button
-$BreakButton.Text = "Break" 
+$BreakButton.Text = "Break"
 $BreakButton.Width = $Widht
 $BreakButton.Height = $Height
 $BreakButton.Location = New-Object System.Drawing.Size($Widht, (3 * $Height))
-$BreakButton.Add_Click( { 
+$BreakButton.Add_Click( {
     Set-BreakType -BreakType breaked
     $script:BreakStartTime = Get-Date
-    WriteTmpFile 
+    WriteTmpFile
     })
 $MainWindow.Controls.Add($BreakButton)
 $Tooltip.SetToolTip($BreakButton, "Pause counting todays work, don't forget to resume counting manually if you do not lock the workstation")
 
 $BreakLock = New-Object System.Windows.Forms.Button
-$BreakLock.Text = "Break and Lock" 
+$BreakLock.Text = "Break and Lock"
 $BreakLock.Width = $Widht
 $BreakLock.Height = $Height
 $BreakLock.Location = New-Object System.Drawing.Size($Widht, (4 * $Height))
-$BreakLock.Add_Click( { 
+$BreakLock.Add_Click( {
     if ($script:BreakType -eq [BreakTypes]::running)
     {
         $script:BreakStartTime = Get-Date
