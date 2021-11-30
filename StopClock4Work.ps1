@@ -43,6 +43,81 @@ $TmpFile = Join-Path $DataFolder $TmpFileName
 # Import User Options
 Import-Module "$($DataFolder)\OptionsV0.ps1"
 
+# Declare Buttons
+$Stop           = New-Object System.Windows.Forms.Button
+$StopHybernate  = New-Object System.Windows.Forms.Button
+$StopShutdown   = New-Object System.Windows.Forms.Button
+$OutputFile     = New-Object System.Windows.Forms.Button
+$Start          = New-Object System.Windows.Forms.Button
+$Resume         = New-Object System.Windows.Forms.Button
+$BreakButton    = New-Object System.Windows.Forms.Button
+$BreakLock      = New-Object System.Windows.Forms.Button
+
+function Set-BreakType {
+
+    param (
+        [BreakTypes]$BreakTypeToSet
+    )
+
+    switch ($BreakTypeToSet) {
+
+        ([BreakTypes]::running) {
+
+            $script:BreakType = [BreakTypes]::running
+
+            $script:Stop.Enabled = $True
+            $script:StopHybernate.Enabled = $True
+            $script:StopShutdown.Enabled = $True
+            $script:Start.Enabled = $False
+            $script:BreakButton.Enabled = $True
+            $script:Resume.Enabled = $False
+            $script:BreakLock.Enabled = $True
+            break
+        }
+
+        ([BreakTypes]::breaked) {
+
+            $script:BreakType = [BreakTypes]::breaked
+
+            $script:Stop.Enabled = $True
+            $script:StopHybernate.Enabled = $True
+            $script:StopShutdown.Enabled = $True
+            $script:Start.Enabled = $False
+            $script:BreakButton.Enabled = $False
+            $script:Resume.Enabled = $True
+            $script:BreakLock.Enabled = $True
+            break
+        }
+
+        ([BreakTypes]::breakedByLock) {
+
+            $script:BreakType = [BreakTypes]::breakedByLock
+            # this setting is more theoretically
+            $script:Stop.Enabled = $True
+            $script:StopHybernate.Enabled = $True
+            $script:StopShutdown.Enabled = $True
+            $script:Start.Enabled = $False
+            $script:BreakButton.Enabled = $False
+            $script:Resume.Enabled = $True
+            $script:BreakLock.Enabled = $False
+            break
+        }
+
+        ([BreakTypes]::stopped) {
+
+            $script:BreakType = [BreakTypes]::stopped
+
+            $script:Stop.Enabled = $False
+            $script:StopHybernate.Enabled = $True
+            $script:StopShutdown.Enabled = $True
+            $script:Start.Enabled = $True
+            $script:BreakButton.Enabled = $False
+            $script:Resume.Enabled = $False
+            $script:BreakLock.Enabled = $False
+            break
+        }
+    }
+}
 
 # Variables for calculation
 $SecondsToWriteTmp = 300 # -> means every 5min
@@ -56,10 +131,10 @@ function init() {
         $script:WorkTime               = [Timespan]::Parse($ReadStart.WorkTime)
         $script:TotalBreakTime         = [Timespan]::Parse($ReadStart.BreakTime)
         $script:BreakStartTime         = [DateTime]::Parse($ReadStart.BreakStartTime)
-        $script:BreakType              = $ReadStart.BreakType
+        Set-BreakType -BreakType $ReadStart.BreakType
 
         $Time = Get-Date;
-        if ($script:StartTime.Date -ne $Time.Date) # new day (after hybernation) -> write output to file and start counting again
+        if ($script:StartTime.Date -ne $Time.Date) # new day (after reboot) without stopping -> write output to file and start counting again
         {
             WriteToCsv
 
@@ -67,7 +142,7 @@ function init() {
             $script:WorkTime = New-TimeSpan -Seconds 0;
             $script:TotalBreakTime = New-TimeSpan -Seconds 0;
             $script:BreakStartTime = Get-Date
-            $script:BreakType = [BreakTypes]::running
+            Set-BreakType -BreakType running
         }
     }
     else
@@ -76,7 +151,7 @@ function init() {
         $script:WorkTime = New-TimeSpan -Seconds 0;
         $script:TotalBreakTime = New-TimeSpan -Seconds 0;
         $script:BreakStartTime = Get-Date
-        $script:BreakType = [BreakTypes]::running
+        Set-BreakType -BreakType running
     }
 
     $script:BreakTime = New-TimeSpan -Seconds 0;
@@ -237,71 +312,6 @@ function GetLogonStatus () {
     catch { if ($user) { return 0 } } #user is logged on
 }
 
-function Set-BreakType {
-
-    param (
-        [BreakTypes]$BreakTypeToSet
-    )
-
-    switch ($BreakTypeToSet) {
-
-        ([BreakTypes]::running) {
-
-            $script:BreakType = [BreakTypes]::running
-
-            $script:Stop.Enabled = $True
-            $script:StopHybernate.Enabled = $True
-            $script:StopShutdown.Enabled = $True
-            $script:Start.Enabled = $False
-            $script:BreakButton.Enabled = $True
-            $script:Resume.Enabled = $False
-            $script:BreakLock.Enabled = $True
-            break
-        }
-
-        ([BreakTypes]::breaked) {
-
-            $script:BreakType = [BreakTypes]::breaked
-
-            $script:Stop.Enabled = $True
-            $script:StopHybernate.Enabled = $True
-            $script:StopShutdown.Enabled = $True
-            $script:Start.Enabled = $False
-            $script:BreakButton.Enabled = $False
-            $script:Resume.Enabled = $True
-            $script:BreakLock.Enabled = $True
-            break
-        }
-
-        ([BreakTypes]::breakedByLock) {
-
-            $script:BreakType = [BreakTypes]::breakedByLock
-            # this setting is more theoretically
-            $script:Stop.Enabled = $True
-            $script:StopHybernate.Enabled = $True
-            $script:StopShutdown.Enabled = $True
-            $script:Start.Enabled = $False
-            $script:BreakButton.Enabled = $False
-            $script:Resume.Enabled = $True
-            $script:BreakLock.Enabled = $False
-            break
-        }
-
-        ([BreakTypes]::stopped) {
-
-            $script:BreakType = [BreakTypes]::stopped
-
-            $script:Stop.Enabled = $False
-            $script:StopHybernate.Enabled = $True
-            $script:StopShutdown.Enabled = $True
-            $script:Start.Enabled = $True
-            $script:BreakButton.Enabled = $False
-            $script:Resume.Enabled = $False
-            $script:BreakLock.Enabled = $False
-            break
-        }
-    }
-}
 
 $stopclock = {
 
@@ -340,11 +350,10 @@ $stopclock = {
         ([BreakTypes]::breakedByLock) {
 
             $Time = Get-Date;
-            if ($script:StartTime.Date -ne $Time.Date) # new day (after hybernation) -> write output to file and start counting again
+            if ($script:StartTime.Date -ne $Time.Date) # new day (after hybernation) without stopping -> write output to file and start counting again
             {
                 WriteToCsv
                 init
-                Set-BreakType -BreakType running
             }
             elseif ( $logonStatus -eq 0) {
                 $script:BreakTime = New-TimeSpan –Start $script:BreakStartTime –End $Time
@@ -378,7 +387,6 @@ $stopclock = {
             if ($script:StartTime.Date -ne $Time.Date) # new day (after hybernation) -> start counting again
             {
                 init
-                Set-BreakType -BreakType running
             }
             break
         }
@@ -393,8 +401,7 @@ $timer.add_Tick($stopclock)
 
 
 
-# Buttons
-$Stop = New-Object System.Windows.Forms.Button
+# Configure Buttons
 $Stop.Text = "Stop"
 $Stop.Width = $Widht
 $Stop.Height = $Height
@@ -409,7 +416,6 @@ $Stop.Add_Click( {
 $MainWindow.Controls.Add($Stop)
 $Tooltip.SetToolTip($Stop, "Stop counting todays work and write a line to output file")
 
-$StopHybernate = New-Object System.Windows.Forms.Button
 $StopHybernate.Text = "Stop and Hybernate"
 $StopHybernate.Width = $Widht
 $StopHybernate.Height = $Height
@@ -425,7 +431,6 @@ $StopHybernate.Add_Click( {
 $MainWindow.Controls.Add($StopHybernate)
 $Tooltip.SetToolTip($StopHybernate, "Stop counting todays work, write a line to output file and hybernate the workstation")
 
-$StopShutdown = New-Object System.Windows.Forms.Button
 $StopShutdown.Text = "Stop and Shutdown"
 $StopShutdown.Width = $Widht
 $StopShutdown.Height = $Height
@@ -442,7 +447,6 @@ $StopShutdown.Add_Click( {
 $MainWindow.Controls.Add($StopShutdown)
 $Tooltip.SetToolTip($StopShutdown, "Stop counting todays work, write a line to output file and shut down the workstation")
 
-$OutputFile = New-Object System.Windows.Forms.Button
 $OutputFile.Text = "View Output File"
 $OutputFile.Width = $Widht
 $OutputFile.Height = $Height
@@ -453,21 +457,18 @@ $OutputFile.Add_Click( {
 $MainWindow.Controls.Add($OutputFile)
 $Tooltip.SetToolTip($OutputFile, "Open output CSV File with Excel")
 
-$Start = New-Object System.Windows.Forms.Button
 $Start.Text = "Start"
 $Start.Width = $Widht
 $Start.Height = $Height
 $Start.Location = New-Object System.Drawing.Size($Widht, $Height)
 $Start.Add_Click( {
     init
-    Set-BreakType -BreakType running
     $timer.Enabled = $True
     WriteTmpFile
 })
 $MainWindow.Controls.Add($Start)
 $Tooltip.SetToolTip($Start, "Start counting todays work (if not allready started automatically)")
 
-$Resume = New-Object System.Windows.Forms.Button
 $Resume.Text = "Resume"
 $Resume.Width = $Widht
 $Resume.Height = $Height
@@ -480,7 +481,6 @@ $Resume.Add_Click( {
 $MainWindow.Controls.Add($Resume)
 $Tooltip.SetToolTip($Resume, "Resume counting todays work")
 
-$BreakButton = New-Object System.Windows.Forms.Button
 $BreakButton.Text = "Break"
 $BreakButton.Width = $Widht
 $BreakButton.Height = $Height
@@ -493,7 +493,6 @@ $BreakButton.Add_Click( {
 $MainWindow.Controls.Add($BreakButton)
 $Tooltip.SetToolTip($BreakButton, "Pause counting todays work, don't forget to resume counting manually if you do not lock the workstation")
 
-$BreakLock = New-Object System.Windows.Forms.Button
 $BreakLock.Text = "Break and Lock"
 $BreakLock.Width = $Widht
 $BreakLock.Height = $Height
@@ -510,8 +509,6 @@ $BreakLock.Add_Click( {
     })
 $MainWindow.Controls.Add($BreakLock)
 $Tooltip.SetToolTip($BreakLock, "Pause counting todays work and lock the workstation - tool will resume counting automatically")
-
-Set-BreakType -BreakType $BreakType # repeated for initial enabling of buttons
 
 # Die letzte Zeile sorgt dafür, dass unser Fensterobjekt auf dem Bildschirm angezeigt wird.
 [void] $MainWindow.ShowDialog()
