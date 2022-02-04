@@ -426,6 +426,7 @@ $StopHybernate.Add_Click( {
         WriteToCsv
         Set-BreakType -BreakType stopped
     }
+    Start-Sleep -Seconds 5; # wait till slow machines really wrote stuff
     [System.Windows.Forms.Application]::SetSuspendState("Suspend", $False, $False)
     })
 $MainWindow.Controls.Add($StopHybernate)
@@ -441,6 +442,7 @@ $StopShutdown.Add_Click( {
         WriteToCsv
     }
     $timer.Enabled = $False
+    Start-Sleep -Seconds 5; # wait till slow machines really wrote stuff
     shutdown /s /hybrid
     [void] $MainWindow.Close()
     })
