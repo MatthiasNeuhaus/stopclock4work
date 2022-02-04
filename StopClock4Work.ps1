@@ -352,8 +352,10 @@ $stopclock = {
             $Time = Get-Date;
             if ($script:StartTime.Date -ne $Time.Date) # new day (after hybernation) without stopping -> write output to file and start counting again
             {
+                $timer.Enabled = $False # prevent from multiple pop up windows if csv is open in exel
                 WriteToCsv
                 init
+                $timer.Enabled = $True
             }
             elseif ( $logonStatus -eq 0) {
                 $script:BreakTime = New-TimeSpan –Start $script:BreakStartTime –End $Time
